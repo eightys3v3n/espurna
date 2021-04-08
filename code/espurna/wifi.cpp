@@ -206,7 +206,7 @@ ActionsQueue& actions() {
 // TODO(esp32): Null mode turns off radio, no need for these
 
 bool sleep() {
-    if ((opmode() == ::wifi::OpmodeNull) && (wifi_fpm_get_sleep_type() == NONE_SLEEP_T)) {
+    if (opmode() == ::wifi::OpmodeNull) {
         wifi_fpm_set_sleep_type(MODEM_SLEEP_T);
         yield();
         wifi_fpm_open();
@@ -1618,7 +1618,7 @@ void init() {
     disable();
 }
 
-uint8_t stations() {
+size_t stations() {
     return WiFi.softAPgetStationNum();
 }
 
@@ -2453,6 +2453,14 @@ void wifiTurnOn() {
 
 void wifiApCheck() {
     wifi::action(wifi::Action::AccessPointFallbackCheck);
+}
+
+size_t wifiApStations() {
+    if (wifi::ap::enabled()) {
+        return wifi::ap::stations();
+    }
+
+    return 0;
 }
 
 void wifiSetup() {

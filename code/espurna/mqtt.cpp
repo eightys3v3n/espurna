@@ -617,10 +617,10 @@ bool _mqttHeartbeat(heartbeat::Mask mask) {
         mqttSend(MQTT_TOPIC_INTERVAL, String(_mqtt_heartbeat_interval.count()).c_str());
 
     if (mask & heartbeat::Report::App)
-        mqttSend(MQTT_TOPIC_APP, APP_NAME);
+        mqttSend(MQTT_TOPIC_APP, getAppName());
 
     if (mask & heartbeat::Report::Version)
-        mqttSend(MQTT_TOPIC_VERSION, getVersion().c_str());
+        mqttSend(MQTT_TOPIC_VERSION, getVersion());
 
     if (mask & heartbeat::Report::Board)
         mqttSend(MQTT_TOPIC_BOARD, getBoardName().c_str());
