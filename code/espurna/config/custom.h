@@ -13,6 +13,7 @@
 #define IR_SUPPORT 0
 #define LLMNR_SUPPORT 0
 #define MDNS_SERVER_SUPPORT 0
+#define OTA_ARDUINOOTA_SUPPORT 0
 #define NETBIOS_SUPPORT 0
 #define RFB_SUPPORT 0
 #define THINGSPEAK_SUPPORT 0
@@ -33,9 +34,10 @@
 #define MQTT_RETAIN 0
 
 // Make the built in LED flash on WiFi activity
-#define LED1_PIN 2
-#define LED1_PIN_INVERSE 1
-#define LED1_MODE LED_MODE_WIFI
+// Causes a crash??
+//#define LED1_PIN 2
+//#define LED1_PIN_INVERSE 1
+//#define LED1_MODE LED_MODE_WIFI
 
 // Built-in flash button
 #define BUTTON1_PIN 0
