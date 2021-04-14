@@ -1,6 +1,5 @@
 .clang_complete
 core_version.h
-custom.h
 .DS_Store
 .gcc-flags.json
 .python-version
