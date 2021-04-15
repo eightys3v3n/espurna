@@ -192,7 +192,7 @@
 #define ALEXA_SUPPORT          0
 #define API_SUPPORT            1
 #define BUTTON_SUPPORT         0
-#define DEBUG_SERIAL_SUPPORT   0
+#define DEBUG_SERIAL_SUPPORT   1
 #define DEBUG_TELNET_SUPPORT   0
 #define DEBUG_UDP_SUPPORT      0
 #define DEBUG_WEB_SUPPORT      1
