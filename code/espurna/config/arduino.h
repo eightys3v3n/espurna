@@ -189,84 +189,84 @@
 // Features (values below are non-default values)
 //--------------------------------------------------------------------------------
 
-#define ALEXA_SUPPORT          0
-#define API_SUPPORT            1
-#define BUTTON_SUPPORT         0
-#define DEBUG_SERIAL_SUPPORT   1
-#define DEBUG_TELNET_SUPPORT   0
-#define DEBUG_UDP_SUPPORT      0
-#define DEBUG_WEB_SUPPORT      1
-#define DOMOTICZ_SUPPORT       0
-#define ENCODER_SUPPORT        1
-#define HOMEASSISTANT_SUPPORT  1
-#define I2C_SUPPORT            0
-#define INFLUXDB_SUPPORT       0
-#define IR_SUPPORT             0
-#define LED_SUPPORT            1
-#define LLMNR_SUPPORT          0
-#define MDNS_SERVER_SUPPORT    0
-#define MQTT_SUPPORT           1
-#define NETBIOS_SUPPORT        0
-#define NOFUSS_SUPPORT         1
-#define NTP_SUPPORT            1
-#define OTA_ARDUINOOTA_SUPPORT 0
-#define RFM69_SUPPORT          0
-#define RFB_SUPPORT            0
-#define RPN_RULES_SUPPORT      0
-#define SCHEDULER_SUPPORT      1
-#define SPIFFS_SUPPORT         0
-#define SSDP_SUPPORT           0
-#define TELNET_SUPPORT         0
-#define TERMINAL_SUPPORT       1
-#define THINGSPEAK_SUPPORT     0
-#define TUYA_SUPPORT           0
-#define UART_MQTT_SUPPORT      0
-#define WEB_SUPPORT            1
+// #define ALEXA_SUPPORT          0
+// #define API_SUPPORT            1
+// #define BUTTON_SUPPORT         0
+// #define DEBUG_SERIAL_SUPPORT   1
+// #define DEBUG_TELNET_SUPPORT   0
+// #define DEBUG_UDP_SUPPORT      0
+// #define DEBUG_WEB_SUPPORT      1
+// #define DOMOTICZ_SUPPORT       0
+// #define ENCODER_SUPPORT        1
+// #define HOMEASSISTANT_SUPPORT  1
+// #define I2C_SUPPORT            0
+// #define INFLUXDB_SUPPORT       0
+// #define IR_SUPPORT             0
+// #define LED_SUPPORT            1
+// #define LLMNR_SUPPORT          0
+// #define MDNS_SERVER_SUPPORT    0
+// #define MQTT_SUPPORT           1
+// #define NETBIOS_SUPPORT        0
+// #define NOFUSS_SUPPORT         1
+// #define NTP_SUPPORT            1
+// #define OTA_ARDUINOOTA_SUPPORT 0
+// #define RFM69_SUPPORT          0
+// #define RFB_SUPPORT            0
+// #define RPN_RULES_SUPPORT      0
+// #define SCHEDULER_SUPPORT      1
+// #define SPIFFS_SUPPORT         0
+// #define SSDP_SUPPORT           0
+// #define TELNET_SUPPORT         0
+// #define TERMINAL_SUPPORT       1
+// #define THINGSPEAK_SUPPORT     0
+// #define TUYA_SUPPORT           0
+// #define UART_MQTT_SUPPORT      0
+// #define WEB_SUPPORT            1
 
 //--------------------------------------------------------------------------------
 // Sensors (values below are non-default values)
 //--------------------------------------------------------------------------------
 
-#define ADE7953_SUPPORT        0
-#define AM2320_SUPPORT         0
-#define ANALOG_SUPPORT         0
-#define BH1750_SUPPORT         0
-#define BMP180_SUPPORT         0
-#define BMX280_SUPPORT         0
-#define BME680_SUPPORT         0
-#define CSE7766_SUPPORT        0
-#define DALLAS_SUPPORT         0
-#define DHT_SUPPORT            0
-#define DIGITAL_SUPPORT        1
-#define ECH1560_SUPPORT        0
-#define EMON_ADC121_SUPPORT    0
-#define EMON_ADS1X15_SUPPORT   0
-#define EMON_ANALOG_SUPPORT    0
-#define EVENTS_SUPPORT         0
-#define EZOPH_SUPPORT          0
-#define GEIGER_SUPPORT         0
-#define GUVAS12SD_SUPPORT      0
-#define HLW8012_SUPPORT        0
-#define LDR_SUPPORT            0
-#define MAX6675_SUPPORT        0
-#define MHZ19_SUPPORT          0
-#define MICS2710_SUPPORT       0
-#define MICS5525_SUPPORT       0
-#define NTC_SUPPORT            0
-#define PMSX003_SUPPORT        0
-#define PULSEMETER_SUPPORT     0
-#define PZEM004T_SUPPORT       0
-#define SDS011_SUPPORT         0
-#define SENSEAIR_SUPPORT       0
-#define SHT3X_I2C_SUPPORT      0
-#define SI7021_SUPPORT         0
-#define SONAR_SUPPORT          0
-#define T6613_SUPPORT          0
-#define THERMOSTAT_SUPPORT     0
-#define TMP3X_SUPPORT          0
-#define V9261F_SUPPORT         0
-#define VEML6075_SUPPORT       0
-#define VL53L1X_SUPPORT        0
-#define HDC1080_SUPPORT        0
+// #define ADE7953_SUPPORT        0
+// #define AM2320_SUPPORT         0
+// #define ANALOG_SUPPORT         0
+// #define BH1750_SUPPORT         0
+// #define BMP180_SUPPORT         0
+// #define BMX280_SUPPORT         0
+// #define BME680_SUPPORT         0
+// #define CSE7766_SUPPORT        0
+// #define DALLAS_SUPPORT         0
+// #define DHT_SUPPORT            0
+// #define DIGITAL_SUPPORT        1
+// #define ECH1560_SUPPORT        0
+// #define EMON_ADC121_SUPPORT    0
+// #define EMON_ADS1X15_SUPPORT   0
+// #define EMON_ANALOG_SUPPORT    0
+// #define EVENTS_SUPPORT         0
+// #define EZOPH_SUPPORT          0
+// #define GEIGER_SUPPORT         0
+// #define GUVAS12SD_SUPPORT      0
+// #define HLW8012_SUPPORT        0
+// #define LDR_SUPPORT            0
+// #define MAX6675_SUPPORT        0
+// #define MHZ19_SUPPORT          0
+// #define MICS2710_SUPPORT       0
+// #define MICS5525_SUPPORT       0
+// #define NTC_SUPPORT            0
+// #define PMSX003_SUPPORT        0
+// #define PULSEMETER_SUPPORT     0
+// #define PZEM004T_SUPPORT       0
+// #define SDS011_SUPPORT         0
+// #define SENSEAIR_SUPPORT       0
+// #define SHT3X_I2C_SUPPORT      0
+// #define SI7021_SUPPORT         0
+// #define SONAR_SUPPORT          0
+// #define T6613_SUPPORT          0
+// #define THERMOSTAT_SUPPORT     0
+// #define TMP3X_SUPPORT          0
+// #define V9261F_SUPPORT         0
+// #define VEML6075_SUPPORT       0
+// #define VL53L1X_SUPPORT        0
+// #define HDC1080_SUPPORT        0
 
 #include "custom.h"
