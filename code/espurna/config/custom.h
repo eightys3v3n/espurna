@@ -90,6 +90,10 @@
 #define BUTTON_MQTT_SEND_ALL_EVENTS 1
 #define MQTT_RETAIN 0
 
+// Attempt to fix disconnecting when low WiFi power.
+#define WIFI_CONNECT_RETRIES 5 // try to connect five times to  each WiFi network
+#define WIFI_CONNECT_INTERVAL 4000 // try to reconnect every 4 seconds
+
 // Make the built in LED flash on WiFi activity
 #define LED1_PIN 2
 #define LED1_PIN_INVERSE 1
