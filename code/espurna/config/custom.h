@@ -34,10 +34,9 @@
 #define MQTT_RETAIN 0
 
 // Make the built in LED flash on WiFi activity
-// Causes a crash??
-//#define LED1_PIN 2
-//#define LED1_PIN_INVERSE 1
-//#define LED1_MODE LED_MODE_WIFI
+#define LED1_PIN 2
+#define LED1_PIN_INVERSE 1
+#define LED1_MODE LED_MODE_WIFI
 
 // Built-in flash button
 #define BUTTON1_PIN 0
