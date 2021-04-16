@@ -87,11 +87,11 @@
 // Configuration
 #define DEVICE_NAME "Unnamed_Temp_Monitor"
 #define LIGHT_SAVE_ENABLED 0
-#define BUTTON_MQTT_SEND_ALL_EVENTS 1
+#define BUTTON_MQTT_SEND_ALL_EVENTS 1 // send all button presses to mqtt
 #define MQTT_RETAIN 0
 #define WEB_FORCE_PASS_CHANGE 0 // don't force password change, defined in credentials.
-#define HOMEASSISTANT_ENABLED 1
-#define MQTT_ENABLED 1
+#define HOMEASSISTANT_ENABLED 1 // enabled upon first boot after flash
+#define MQTT_ENABLED 1 // enabled upon first boot after flash
 #define NPT_TIMEZONE TZ_America_Edmonton
 
 // Attempt to fix disconnecting when low WiFi power.
