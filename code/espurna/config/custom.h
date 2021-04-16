@@ -99,7 +99,7 @@
 // For the motor relay
 #define RELAY1_PIN 5
 #define RELAY1_TYPE RELAY_TYPE_NORMAL
-#define RELAY1_PULSE_MODE RELAY_PULSE_OFF // defaults to being off
+#define RELAY1_PULSE_MODE RELAY_PULSE_ON // defaults to being on
 #define RELAY1_PULSE_TIME 3 // number of seconds the relay can stay on for
 
 // Secret Configuration
