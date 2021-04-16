@@ -12,8 +12,7 @@
 #define DEBUG_WEB_SUPPORT      1
 #define DOMOTICZ_SUPPORT       0
 #define ENCODER_SUPPORT        1
-#define HOMEASSISTANT_SUPPORT  1 // Not sure which of these works.
-#define HASS_SUPPORT           1 // Not sure which of these works.
+#define HOMEASSISTANT_SUPPORT  1
 #define I2C_SUPPORT            0
 #define INFLUXDB_SUPPORT       0
 #define IR_SUPPORT             0
@@ -86,13 +85,19 @@
 
 
 // Configuration
+#define DEVICE_NAME "Unnamed_Temp_Monitor"
 #define LIGHT_SAVE_ENABLED 0
 #define BUTTON_MQTT_SEND_ALL_EVENTS 1
 #define MQTT_RETAIN 0
+#define WEB_FORCE_PASS_CHANGE 0 // don't force password change, defined in credentials.
+#define HOMEASSISTANT_ENABLED 1
+#define MQTT_ENABLED 1
+#define NPT_TIMEZONE TZ_America_Edmonton
 
 // Attempt to fix disconnecting when low WiFi power.
 #define WIFI_CONNECT_RETRIES 5 // try to connect five times to  each WiFi network
 #define WIFI_CONNECT_INTERVAL 4000 // try to reconnect every 4 seconds
+#define WIFI_SCAN_RSSI_THRESHOLD -77 // what signal should we try to reconnect at
 
 // Make the built in LED flash on WiFi activity
 #define LED1_PIN 2
