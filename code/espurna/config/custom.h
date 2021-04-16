@@ -53,7 +53,7 @@
 #define CSE7766_SUPPORT        0
 #define DALLAS_SUPPORT         0
 #define DHT_SUPPORT            0
-#define DIGITAL_SUPPORT        1
+#define DIGITAL_SUPPORT        0
 #define ECH1560_SUPPORT        0
 #define EMON_ADC121_SUPPORT    0
 #define EMON_ADS1X15_SUPPORT   0
@@ -97,28 +97,10 @@
 #define LED1_MODE LED_MODE_WIFI
 
 // For the motor relay
-#define RELAY1_PIN 13
+#define RELAY1_PIN 5
 #define RELAY1_TYPE RELAY_TYPE_NORMAL
-#define RELAY1_PULSE_MODE RELAY_PULSE_OFF // defaults to being off (not watering)
-#define RELAY1_PULSE_TIME 20 // number of seconds the relay can stay on for
-
-// Built-in flash button
-#define BUTTON1_PIN 0
-#define BUTTON1_CONFIG BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
-#define BUTTON1_LNGCLICK BUTTON_ACTION_NONE
-
-// Extra external button
-#define BUTTON2_PIN 14
-#define BUTTON2_CONFIG BUTTON_PUSHBUTTON | BUTTON_SET_PULLUP | BUTTON_DEFAULT_HIGH
-#define BUTTON2_PRESS BUTTON_ACTION_PULSE
-#define BUTTON2_CLICK BUTTON_ACTION_NONE
-#define BUTTON2_RELEASE BUTTON_ACTION_OFF
-#define BUTTON2_DBLCLICK BUTTON_ACTION_TOGGLE
-#define BUTTON2_RELAY 1
-
-// Float sensor
-#define DIGITAL1_PIN 12
-
+#define RELAY1_PULSE_MODE RELAY_PULSE_OFF // defaults to being off
+#define RELAY1_PULSE_TIME 3 // number of seconds the relay can stay on for
 
 // Secret Configuration
 #include "credentials.h"
