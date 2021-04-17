@@ -97,7 +97,11 @@
 // Attempt to fix disconnecting when low WiFi power.
 #define WIFI_CONNECT_RETRIES 5 // try to connect five times to  each WiFi network
 #define WIFI_CONNECT_INTERVAL 4000 // try to reconnect every 4 seconds
-#define WIFI_SCAN_RSSI_THRESHOLD -77 // what signal should we try to reconnect at
+
+// what signal should we try to reconnect at
+// This is at such a poor signal level because sometimes my devices won't reconnect
+// after disconnecting. If I set this lower they seem to stay connected.
+#define WIFI_SCAN_RSSI_THRESHOLD -85
 
 // Make the built in LED flash on WiFi activity
 #define LED1_PIN 2
