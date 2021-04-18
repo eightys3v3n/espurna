@@ -20,7 +20,7 @@
 #define LLMNR_SUPPORT          0
 #define MDNS_SERVER_SUPPORT    0
 #define MQTT_SUPPORT           1
-#define NETBIOS_SUPPORT        0
+#define NETBIOS_SUPPORT        1
 #define NOFUSS_SUPPORT         1
 #define NTP_SUPPORT            1
 #define OTA_ARDUINOOTA_SUPPORT 0
