@@ -1,6 +1,6 @@
 # eightys3v3n's Changes
 This branch is designed to be compiled for an ESP8266 integrated into a BIOS living Seasonal Affective Disorder light.
-Instructions are available at https://github.com/eightys3v3n/esp8266_sad_light_iot_integration.
+Parent repo is at https://github.com/eightys3v3n/esp8266_sad_light_iot_integration.
 
 # ESPurna Firmware
 
