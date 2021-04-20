@@ -13,8 +13,7 @@
 #define DEBUG_WEB_SUPPORT      1
 #define DOMOTICZ_SUPPORT       0
 #define ENCODER_SUPPORT        1
-#define HOMEASSISTANT_SUPPORT  1 // Not sure which of these works.
-#define HASS_SUPPORT           1 // Not sure which of these works.
+#define HOMEASSISTANT_SUPPORT  1
 #define I2C_SUPPORT            0
 #define INFLUXDB_SUPPORT       0
 #define IR_SUPPORT             0
@@ -90,6 +89,8 @@
 #define LIGHT_SAVE_ENABLED 0
 #define BUTTON_MQTT_SEND_ALL_EVENTS 1
 #define MQTT_RETAIN 0
+#define MQTT_ENABLED 1
+#define HOMEASSISTANT_ENABLED 1
 
 // Make the built in LED flash on WiFi activity
 #define LED1_PIN 2
