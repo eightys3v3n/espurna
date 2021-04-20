@@ -1,6 +1,6 @@
 # eightys3v3n's Changes
-This branch is designed to be compiled for an ESP8266 with a relay and button connected. It can then be used to water plants :D  
-Full instructions should be available before April 22, 2021 at eightys3v3/plant_water
+This branch is designed to be compiled for an ESP8266 integrated into a BIOS living Seasonal Affective Disorder light.
+Instructions are available at https://github.com/eightys3v3n/esp8266_sad_light_iot_integration.
 
 # ESPurna Firmware
 
