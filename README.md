@@ -1,6 +1,6 @@
 # eightys3v3n's Changes
 This branch is designed to be compiled for an ESP8266 with a relay and button connected. It can then be used to water plants :D  
-Full instructions are available at eightys3v3/plant_water.
+Full instructions and parent repo are available at https://github.com/eightys3v3n/plant_water.
 
 # ESPurna Firmware
 
