@@ -81,7 +81,8 @@
     //#define BUTTON_SUPPORT          0 // don't need / have buttons
     //#define LED_SUPPORT             0 // don't need wifi indicator
     //#define RELAY_SUPPORT           0 // don't need to preserve pin state between resets
-    //#define OTA_ARDUINOOTA_SUPPORT  0 // when only using `ota` command
+    //#define OTA_ARDUINOOTA_SUPPORT  0 // when only using the `ota` command
+    //#define OTA_WEB_SUPPORT         0 //
     //#define MDNS_SERVER_SUPPORT     0 //
     //#define TELNET_SUPPORT          0 // when only using espota.py
     //#define TERMINAL_SUPPORT        0 //
@@ -1303,7 +1304,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           4
-    #define IR_BUTTON_SET       1
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        1
 
 #elif defined(MAGICHOME_LED_CONTROLLER_20)
 
@@ -1325,7 +1327,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           4
-    #define IR_BUTTON_SET       1
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        1
 
 #elif defined(MAGICHOME_ZJ_WFMN_A_11)
 
@@ -1349,7 +1352,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           4
-    #define IR_BUTTON_SET       1
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        1
 
 #elif defined(MAGICHOME_ZJ_WFMN_B_11)
 
@@ -4294,14 +4298,20 @@
     #define SERIAL_BAUDRATE         19200
 
     // Relays
-    #define RELAY_PROVIDER_DUAL_SUPPORT 1
+    #define LIGHTFOX_RELAYS         2
 
-    #define RELAY1_PROVIDER         RELAY_PROVIDER_DUAL
-    #define RELAY2_PROVIDER         RELAY_PROVIDER_DUAL
+    // Buttons
+    #define LIGHTFOX_BUTTONS        4
 
-    // No need to include generic GPIO support
-    // "Buttons" are attached to a secondary MCU and RELAY_PROVIDER_DUAL handles that
-    #define BUTTON_PROVIDER_GPIO_SUPPORT    0
+    #define BUTTON1_CLICK           BUTTON_ACTION_TOGGLE
+    #define BUTTON2_CLICK           BUTTON_ACTION_TOGGLE
+    #define BUTTON3_CLICK           BUTTON_ACTION_TOGGLE
+    #define BUTTON4_CLICK           BUTTON_ACTION_TOGGLE
+
+    #define BUTTON1_RELAY           1
+    #define BUTTON2_RELAY           2
+    #define BUTTON3_RELAY           2
+    #define BUTTON4_RELAY           1
 
     // Conflicts with relay operation
     #define DEBUG_SERIAL_SUPPORT            0
@@ -4703,8 +4713,6 @@
     #define MANUFACTURER            "KINGART"
     #define DEVICE                  "CURTAIN_SWITCH"
 
-    #define CURTAIN_SUPPORT         1
-
     // LEDs
     #define LED1_PIN                13
     #define LED1_PIN_INVERSE        1
@@ -4737,7 +4745,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           0
-    #define IR_BUTTON_SET       5
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        5
 
 // -----------------------------------------------------------------------------
 // eHomeDIY WT02
@@ -4981,6 +4990,23 @@
     #define LIGHT_CH1_INVERSE             0
     #define LIGHT_CH2_PIN                 4       // COLD WHITE LED PWM PIN
     #define LIGHT_CH2_INVERSE             0
+
+// -----------------------------------------------------------------------------
+// Mirabella Genio White A60
+// https://www.woolworths.com.au/shop/productdetails/877102/mirabella-smart-led-gls-es-9w-cool-white
+// Like https://www.mirabellagenio.com.au/product-range/mirabella-genio-wi-fi-dimmable-9w-led-gls-bulb/ 
+// but in cardboard box, Item # I002604
+// -----------------------------------------------------------------------------
+
+#elif defined(MIRABELLA_GENIO_W_A60)
+
+    // Info
+    #define MANUFACTURER        "MIRABELLA"
+    #define DEVICE              "GENIO_W_A60"
+    #define LIGHT_PROVIDER      LIGHT_PROVIDER_DIMMER
+
+    // Light
+    #define LIGHT_CH1_PIN       14       // WHITE
 
 #else
 
