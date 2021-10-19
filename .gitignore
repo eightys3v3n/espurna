@@ -10,10 +10,11 @@ firmware*
 credentials.h
 node_modules
 code/utils
-custom.h
 .python
 .env
 .DS_Store
 .vscode
 _pycache_/
 *.py[cod]
+*~
+\#*#
