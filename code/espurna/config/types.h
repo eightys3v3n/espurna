@@ -9,8 +9,6 @@
 // GPIO
 // -----------------------------------------------------------------------------
 
-#define GPIO_NONE           0x99
-
 #define GPIO_TYPE_NONE          GpioType::None
 #define GPIO_TYPE_HARDWARE      GpioType::Hardware
 #define GPIO_TYPE_MCP23S08      GpioType::Mcp23s08
@@ -81,12 +79,12 @@
 
 #define RELAY_NONE          0x99
 
-#define RELAY_BOOT_OFF              0
-#define RELAY_BOOT_ON               1
-#define RELAY_BOOT_SAME             2
-#define RELAY_BOOT_TOGGLE           3
-#define RELAY_BOOT_LOCKED_OFF       4
-#define RELAY_BOOT_LOCKED_ON        5
+#define RELAY_BOOT_OFF              RelayBoot::Off
+#define RELAY_BOOT_ON               RelayBoot::On
+#define RELAY_BOOT_SAME             RelayBoot::Same
+#define RELAY_BOOT_TOGGLE           RelayBoot::Toggle
+#define RELAY_BOOT_LOCKED_OFF       RelayBoot::LockedOff
+#define RELAY_BOOT_LOCKED_ON        RelayBoot::LockedOn
 
 #define RELAY_TYPE_NORMAL           RelayType::Normal
 #define RELAY_TYPE_INVERSE          RelayType::Inverse
@@ -99,9 +97,9 @@
 #define RELAY_SYNC_SAME             3
 #define RELAY_SYNC_FIRST            4
 
-#define RELAY_PULSE_NONE            RelayPulse::None
-#define RELAY_PULSE_OFF             RelayPulse::Off
-#define RELAY_PULSE_ON              RelayPulse::On
+#define RELAY_PULSE_NONE            Mode::None
+#define RELAY_PULSE_OFF             Mode::Off
+#define RELAY_PULSE_ON              Mode::On
 
 #define RELAY_PROVIDER_NONE         RelayProvider::None
 #define RELAY_PROVIDER_DUMMY        RelayProvider::Dummy
@@ -166,9 +164,9 @@
 // Heartbeat
 //------------------------------------------------------------------------------
 
-#define HEARTBEAT_NONE      heartbeat::Mode::None
-#define HEARTBEAT_ONCE      heartbeat::Mode::Once
-#define HEARTBEAT_REPEAT    heartbeat::Mode::Repeat
+#define HEARTBEAT_NONE      espurna::heartbeat::Mode::None
+#define HEARTBEAT_ONCE      espurna::heartbeat::Mode::Once
+#define HEARTBEAT_REPEAT    espurna::heartbeat::Mode::Repeat
 
 //------------------------------------------------------------------------------
 // MQTT
@@ -225,6 +223,7 @@
 // SCHEDULER
 // -----------------------------------------------------------------------------
 
+#define SCHEDULER_TYPE_NONE         0
 #define SCHEDULER_TYPE_SWITCH       1
 #define SCHEDULER_TYPE_DIM          2
 #define SCHEDULER_TYPE_CURTAIN      3
@@ -326,6 +325,7 @@
 #define SENSOR_HDC1080_ID           40
 #define SENSOR_PZEM004TV30_ID       41
 #define SENSOR_BME680_ID            42
+#define SENSOR_SM300D2_ID           43
 
 //--------------------------------------------------------------------------------
 // Magnitudes
@@ -369,8 +369,10 @@
 #define MAGNITUDE_IAQ_ACCURACY      34
 #define MAGNITUDE_IAQ_STATIC        35
 #define MAGNITUDE_VOC               36
+#define MAGNITUDE_TVOC              37
+#define MAGNITUDE_CH2O              38
 
-#define MAGNITUDE_MAX               38
+#define MAGNITUDE_MAX               39
 
 #define SENSOR_ERROR_OK             0       // No error
 #define SENSOR_ERROR_OUT_OF_RANGE   1       // Result out of sensor range

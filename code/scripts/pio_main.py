@@ -9,24 +9,27 @@
 
 # Run this script every time building an env AFTER platform-specific code is loaded
 
+import os
 from espurna_utils import (
     check_printsize,
     remove_float_support,
     ldscripts_inject_libpath,
-    app_inject_revision,
+    app_inject_version,
     dummy_ets_printf,
     app_inject_flags,
-    copy_release,
+    app_add_target_build_and_copy,
 )
 
+from SCons.Script import Import
 
 Import("env", "projenv")
-
-import os
+env = globals()["env"]
+projenv = globals()["projenv"]
 
 CI = "true" == os.environ.get("CI")
 
-env.ProcessFlags("-Wl,-Map -Wl,\\\"${BUILD_DIR}/${PROGNAME}.map\\\"")
+# See what happens in-between linking .cpp.o + .a into the resulting .elf
+env.ProcessFlags('-Wl,-Map -Wl,\\"${BUILD_DIR}/${PROGNAME}.map\\"')
 
 # Always show warnings for project code
 projenv.ProcessUnFlags("-w")
@@ -46,11 +49,13 @@ if "DISABLE_POSTMORTEM_STACKDUMP" in env["CPPFLAGS"]:
         "$BUILD_DIR/FrameworkArduino/core_esp8266_postmortem.cpp.o", dummy_ets_printf
     )
 
-# when using git, add -DAPP_REVISION=(git-commit-hash)
-app_inject_revision(projenv)
+# override static version flag from the espurna/config/version.h
+# either completely, or change the version / revision / suffix part separately
+app_inject_version(projenv)
 
-# handle OTA board and flags here, since projenv is not available in pre-scripts
+# handle ESPURNA_BOARD and ESPURNA_FLAGS here, since projenv is not available in pre-scripts
+# TODO: prefer PLATFORMIO_SRC_BUILD_FLAGS instead? both of these only allow -D...
 app_inject_flags(projenv)
 
-# handle `-t release` when CI does a tagged build
-env.AlwaysBuild(env.Alias("release", "${BUILD_DIR}/${PROGNAME}.bin", copy_release))
+# handle when CI does a tagged build or user explicitly asked to store the firmware.bin
+app_add_target_build_and_copy(projenv)

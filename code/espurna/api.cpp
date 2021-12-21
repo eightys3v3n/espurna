@@ -193,6 +193,8 @@ error:
     return false;
 }
 
+#if WEB_SUPPORT
+
 String ApiRequest::wildcard(int index) const {
     if (index < 0) {
         index = std::abs(index + 1);
@@ -230,19 +232,22 @@ size_t ApiRequest::wildcards() const {
     return result;
 }
 
+#endif
+
 // -----------------------------------------------------------------------------
 
 #if API_SUPPORT
 
+namespace {
+
 bool _apiAccepts(AsyncWebServerRequest* request, const __FlashStringHelper* str) {
     auto* header = request->getHeader(F("Accept"));
-    if (header) {
-        return
-            (header->value().indexOf(F("*/*")) >= 0)
-         || (header->value().indexOf(str) >= 0);
+    if (!header) {
+        return true;
     }
 
-    return false;
+    return (header->value().indexOf(F("*/*")) >= 0)
+        || (header->value().indexOf(str) >= 0);
 }
 
 bool _apiAcceptsText(AsyncWebServerRequest* request) {
@@ -253,21 +258,17 @@ bool _apiAcceptsJson(AsyncWebServerRequest* request) {
     return _apiAccepts(request, F("application/json"));
 }
 
-bool _apiMatchHeader(AsyncWebServerRequest* request, const __FlashStringHelper* key, const __FlashStringHelper* value) {
-    auto* header = request->getHeader(key);
-    if (header) {
-        return header->value().equals(value);
-    }
-
-    return false;
-}
-
-bool _apiIsJsonContent(AsyncWebServerRequest* request) {
-    return _apiMatchHeader(request, F("Content-Type"), F("application/json"));
+bool _apiIsContentType(AsyncWebServerRequest* request, const char* value) {
+    const auto& type = request->contentType();
+    return strncmp_P(type.c_str(), value, type.length()) == 0;
 }
 
 bool _apiIsFormDataContent(AsyncWebServerRequest* request) {
-    return _apiMatchHeader(request, F("Content-Type"), F("application/x-www-form-urlencoded"));
+    return _apiIsContentType(request, PSTR("application/x-www-form-urlencoded"));
+}
+
+bool _apiIsJsonContent(AsyncWebServerRequest* request) {
+    return _apiIsContentType(request, PSTR("application/json"));
 }
 
 // Because the webserver request is split between multiple separate function invocations, we need to preserve some state.
@@ -294,6 +295,7 @@ void _apiAttachHelper(AsyncWebServerRequest& request, ApiRequestHelper&& helper)
         request._tempObject = nullptr;
     });
     request.addInterestingHeader(F("Api-Key"));
+    request.addInterestingHeader(F("Accept"));
 }
 
 class ApiBaseWebHandler : public AsyncWebHandler {
@@ -416,10 +418,6 @@ public:
             return false;
         }
 
-        if (!_apiAcceptsJson(request)) {
-            return false;
-        }
-
         auto helper = ApiRequestHelper(*request, parts());
         if (helper.match() && apiAuthenticate(request)) {
             switch (request->method()) {
@@ -432,6 +430,7 @@ public:
                 if (!_put) {
                     return false;
                 }
+                // fallthrough!
             case HTTP_GET:
                 if (!_get) {
                     return false;
@@ -499,6 +498,11 @@ public:
     }
 
     void handleRequest(AsyncWebServerRequest* request) override {
+        if (!_apiAcceptsJson(request)) {
+            request->send(406, F("text/plain"), F("application/json"));
+            return;
+        }
+
         auto& helper = *reinterpret_cast<ApiRequestHelper*>(request->_tempObject);
 
         switch (request->method()) {
@@ -559,10 +563,6 @@ public:
             return false;
         }
 
-        if (!_apiAcceptsText(request)) {
-            return false;
-        }
-
         switch (request->method()) {
         case HTTP_HEAD:
         case HTTP_GET:
@@ -588,6 +588,11 @@ public:
     void handleRequest(AsyncWebServerRequest* request) override {
         if (!apiAuthenticate(request)) {
             request->send(403);
+            return;
+        }
+
+        if (!_apiAcceptsText(request)) {
+            request->send(406, F("text/plain"), F("text/plain"));
             return;
         }
 
@@ -658,10 +663,6 @@ private:
     ApiBasicHandler _put;
 };
 
-// -----------------------------------------------------------------------------
-
-namespace {
-
 std::forward_list<ApiBaseWebHandler*> _apis;
 
 template <typename Handler, typename Callback>
@@ -673,6 +674,8 @@ void _apiRegister(const String& path, Callback&& get, Callback&& put) {
 }
 
 } // namespace
+
+// -----------------------------------------------------------------------------
 
 void apiRegister(const String& path, ApiBasicHandler&& get, ApiBasicHandler&& put) {
     _apiRegister<ApiBasicWebHandler>(path, std::move(get), std::move(put));
@@ -718,4 +721,3 @@ bool apiError(ApiRequest& request) {
 }
 
 #endif // API_SUPPORT
-

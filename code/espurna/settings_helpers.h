@@ -17,7 +17,15 @@ Copyright (C) 2020-2021 by Maxim Prokhorov <prokhorov dot max at outlook dot com
 
 class SettingsKey {
 public:
+    SettingsKey() = default;
+    SettingsKey(const SettingsKey&) = default;
+    SettingsKey(SettingsKey&&) = default;
+
     SettingsKey(const char* key) :
+        _key(key)
+    {}
+
+    SettingsKey(const __FlashStringHelper* key) :
         _key(key)
     {}
 
@@ -29,20 +37,14 @@ public:
         _key(std::move(key))
     {}
 
-    SettingsKey(const String& prefix, size_t index) {
-        _key.reserve(prefix.length() + 4);
-        _key += prefix;
+    SettingsKey(const String& prefix, size_t index) :
+        _key(prefix)
+    {
         _key += index;
     }
 
     SettingsKey(String&& prefix, size_t index) :
         _key(std::move(prefix))
-    {
-        _key += index;
-    }
-
-    SettingsKey(const char* prefix, size_t index) :
-        _key(prefix)
     {
         _key += index;
     }
@@ -55,11 +57,8 @@ public:
         return _key.length();
     }
 
-    bool operator==(const char* other) const {
-        return _key == other;
-    }
-
-    bool operator==(const String& other) const {
+    template <typename T>
+    bool operator==(T&& other) const {
         return _key == other;
     }
 
@@ -88,12 +87,12 @@ struct BasicSetting {
     using Get = String(*)();
 
     BasicSetting() = delete;
-    constexpr BasicSetting(const char* const key, Get get) :
+    constexpr BasicSetting(const char* key, Get get) :
         _key(key),
         _get(get)
     {}
 
-    constexpr const char* const key() const {
+    constexpr const char* key() const {
         return _key;
     }
 
@@ -110,12 +109,12 @@ struct IndexedSetting {
     using Get = String(*)(size_t);
 
     IndexedSetting() = delete;
-    constexpr IndexedSetting(const char* const prefix, Get get) :
+    constexpr IndexedSetting(const char* prefix, Get get) :
         _prefix(prefix),
         _get(get)
     {}
 
-    constexpr const char* const prefix() const {
+    constexpr const char* prefix() const {
         return _prefix;
     }
 

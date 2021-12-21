@@ -14,6 +14,7 @@ Copyright (C) 2019-2021 by Maxim Prokhorov <prokhorov dot max at outlook dot com
 
 #if HOMEASSISTANT_SUPPORT
 
+#include "homeassistant.h"
 #include "light.h"
 #include "mqtt.h"
 #include "relay.h"
@@ -26,16 +27,49 @@ Copyright (C) 2019-2021 by Maxim Prokhorov <prokhorov dot max at outlook dot com
 #include <memory>
 
 namespace homeassistant {
+namespace {
+namespace build {
+
+const __FlashStringHelper* prefix() {
+    return F(HOMEASSISTANT_PREFIX);
+}
+
+constexpr bool enabled() {
+    return 1 == HOMEASSISTANT_ENABLED;
+}
+
+constexpr bool retain() {
+    return 1 == HOMEASSISTANT_RETAIN;
+}
+
+} // namespace build
+
+namespace settings {
+
+String prefix() {
+    return getSetting("haPrefix", build::prefix());
+}
+
+bool enabled() {
+    return getSetting("haEnabled", build::enabled());
+}
+
+bool retain() {
+    return getSetting("haRetain", build::retain());
+}
+
+} // namespace settings
 
 // Output is supposed to be used as both part of the MQTT config topic and the `uniq_id` field
 // TODO: manage UTF8 strings? in case we somehow receive `desc`, like it was done originally
 
-String normalize_ascii(String&& value, bool lower = false) {
-    auto* ptr = const_cast<char*>(value.c_str());
-    for (;;) {
+String normalize_ascii(String input, bool lower) {
+    String output(std::move(input));
+
+    for (auto ptr = output.begin(); ptr != output.end(); ++ptr) {
         switch (*ptr) {
         case '\0':
-            goto return_value;
+            goto return_output;
         case '0' ... '9':
         case 'a' ... 'z':
             break;
@@ -48,11 +82,10 @@ String normalize_ascii(String&& value, bool lower = false) {
             *ptr = '_';
             break;
         }
-        ++ptr;
     }
 
-return_value:
-    return std::move(value);
+return_output:
+    return output;
 }
 
 // Common data used across the discovery payloads.
@@ -60,33 +93,6 @@ return_value:
 
 class Device {
 public:
-    struct Strings {
-        Strings() = delete;
-        Strings(const Strings&) = delete;
-
-        Strings(Strings&&) = default;
-        Strings(String&& prefix_, String&& name_, const String& identifier_, const char* version_, const char* manufacturer_, const char* device_) :
-            prefix(std::move(prefix_)),
-            name(std::move(name_)),
-            identifier(identifier_),
-            version(version_),
-            manufacturer(manufacturer_),
-            device(device_)
-        {
-            name = normalize_ascii(std::move(name));
-            identifier = normalize_ascii(std::move(identifier), true);
-        }
-
-        String prefix;
-        String name;
-        String identifier;
-        const char* version;
-        const char* manufacturer;
-        const char* device;
-    };
-
-    using StringsPtr = std::unique_ptr<Strings>;
-
     static constexpr size_t BufferSize { JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(5) };
 
     using Buffer = StaticJsonBuffer<BufferSize>;
@@ -96,8 +102,10 @@ public:
     Device(const Device&) = delete;
 
     Device(Device&&) = default;
-    Device(String&& prefix, String&& name, const String& identifier, const char* version, const char* manufacturer, const char* device) :
-        _strings(std::make_unique<Strings>(std::move(prefix), std::move(name), identifier, version, manufacturer, device)),
+
+    template <typename... Args>
+    Device(Args&&... args) :
+        _strings(make_strings(std::forward<Args>(args)...)),
         _buffer(std::make_unique<Buffer>()),
         _root(_buffer->createObject())
     {
@@ -127,6 +135,29 @@ public:
     }
 
 private:
+    struct Strings {
+        String prefix;
+        String name;
+        String identifier;
+        const char* version;
+        const char* manufacturer;
+        const char* device;
+    };
+
+    using StringsPtr = std::unique_ptr<Strings>;
+
+    StringsPtr make_strings(String prefix, String name, String identifier, const char* version, const char* manufacturer, const char* device) {
+        return std::make_unique<Strings>(
+            Strings{
+                std::move(prefix),
+                normalize_ascii(std::move(name), false),
+                normalize_ascii(std::move(identifier), true),
+                version,
+                manufacturer,
+                device
+            });
+    }
+
     StringsPtr _strings;
     BufferPtr _buffer;
     JsonObject& _root;
@@ -193,8 +224,8 @@ private:
 
 Context makeContext() {
     auto device = std::make_unique<Device>(
-        getSetting("haPrefix", HOMEASSISTANT_PREFIX),
-        getSetting("hostname", getIdentifier()),
+        settings::prefix(),
+        getHostname(),
         getIdentifier(),
         getVersion(),
         getManufacturer(),
@@ -306,16 +337,16 @@ public:
     const String& message() override {
         if (!_message.length()) {
             auto& json = root();
-            json["dev"] = _ctx.device();
-            json["avty_t"] = _relay.availability.c_str();
-            json["pl_avail"] = _relay.payload_available.c_str();
-            json["pl_not_avail"] = _relay.payload_not_available.c_str();
-            json["pl_on"] = _relay.payload_on.c_str();
-            json["pl_off"] = _relay.payload_off.c_str();
-            json["uniq_id"] = uniqueId();
-            json["name"] = _ctx.name() + ' ' + _index;
-            json["stat_t"] = mqttTopic(MQTT_TOPIC_RELAY, _index, false);
-            json["cmd_t"] = mqttTopic(MQTT_TOPIC_RELAY, _index, true);
+            json[F("dev")] = _ctx.device();
+            json[F("avty_t")] = _relay.availability.c_str();
+            json[F("pl_avail")] = _relay.payload_available.c_str();
+            json[F("pl_not_avail")] = _relay.payload_not_available.c_str();
+            json[F("pl_on")] = _relay.payload_on.c_str();
+            json[F("pl_off")] = _relay.payload_off.c_str();
+            json[F("uniq_id")] = uniqueId();
+            json[F("name")] = _ctx.name() + ' ' + _index;
+            json[F("stat_t")] = mqttTopic(MQTT_TOPIC_RELAY, _index, false);
+            json[F("cmd_t")] = mqttTopic(MQTT_TOPIC_RELAY, _index, true);
             json.printTo(_message);
         }
         return _message;
@@ -420,22 +451,22 @@ public:
         if (!_message.length()) {
             auto& json = root();
 
-            json["schema"] = "json";
-            json["uniq_id"] = uniqueId();
+            json[F("schema")] = "json";
+            json[F("uniq_id")] = uniqueId();
 
-            json["name"] = _ctx.name() + ' ' + F("Light");
+            json[F("name")] = _ctx.name() + ' ' + F("Light");
 
-            json["stat_t"] = mqttTopic(MQTT_TOPIC_LIGHT_JSON, false);
-            json["cmd_t"] = mqttTopic(MQTT_TOPIC_LIGHT_JSON, true);
+            json[F("stat_t")] = mqttTopic(MQTT_TOPIC_LIGHT_JSON, false);
+            json[F("cmd_t")] = mqttTopic(MQTT_TOPIC_LIGHT_JSON, true);
 
-            json["avty_t"] = mqttTopic(MQTT_TOPIC_STATUS, false);
-            json["pl_avail"] = quote(mqttPayloadStatus(true));
-            json["pl_not_avail"] = quote(mqttPayloadStatus(false));
+            json[F("avty_t")] = mqttTopic(MQTT_TOPIC_STATUS, false);
+            json[F("pl_avail")] = quote(mqttPayloadStatus(true));
+            json[F("pl_not_avail")] = quote(mqttPayloadStatus(false));
 
             // send `true` for every payload we support sending / receiving
             // already enabled by default: "state", "transition"
 
-            json["brightness"] = true;
+            json[F("brightness")] = true;
 
             // Note that since we send back the values immediately, HS mode sliders
             // *will jump*, as calculations of input do not always match the output.
@@ -444,9 +475,9 @@ public:
 
             if (lightHasColor()) {
                 if (lightUseRGB()) {
-                    json["rgb"] = true;
+                    json[F("rgb")] = true;
                 } else {
-                    json["hs"] = true;
+                    json[F("hs")] = true;
                 }
             }
 
@@ -457,9 +488,9 @@ public:
 
             if (lightHasColor() || lightUseCCT()) {
                 auto range = lightMiredsRange();
-                json["min_mirs"] = range.cold();
-                json["max_mirs"] = range.warm();
-                json["color_temp"] = true;
+                json[F("min_mirs")] = range.cold();
+                json[F("max_mirs")] = range.warm();
+                json[F("color_temp")] = true;
             }
 
             json.printTo(_message);
@@ -477,10 +508,10 @@ private:
     String _message;
 };
 
-bool heartbeat(heartbeat::Mask mask) {
+bool heartbeat(espurna::heartbeat::Mask mask) {
     // TODO: mask json payload specifically?
     // or, find a way to detach masking from the system setting / don't use heartbeat timer
-    if (mask & heartbeat::Report::Light) {
+    if (mask & espurna::heartbeat::Report::Light) {
         DynamicJsonBuffer buffer(512);
         JsonObject& root = buffer.createObject();
 
@@ -520,7 +551,7 @@ bool heartbeat(heartbeat::Mask mask) {
 }
 
 void publishLightJson() {
-    heartbeat(static_cast<heartbeat::Mask>(heartbeat::Report::Light));
+    heartbeat(static_cast<espurna::heartbeat::Mask>(espurna::heartbeat::Report::Light));
 }
 
 void receiveLightJson(char* payload) {
@@ -543,11 +574,14 @@ void receiveLightJson(char* payload) {
         return;
     }
 
-    unsigned long transition { lightTransitionTime() };
+    auto transition = lightTransitionTime();
     if (root.containsKey("transition")) {
-        auto seconds = root["transition"].as<float>();
-        if (seconds > 0) {
-            transition = static_cast<unsigned long>(seconds * 1000.0);
+        using LocalUnit = decltype(lightTransitionTime());
+        using RemoteUnit = std::chrono::duration<float>;
+        auto seconds = RemoteUnit(root["transition"].as<float>());
+
+        if (seconds.count() > 0.0f) {
+            transition = std::chrono::duration_cast<LocalUnit>(seconds);
         }
     }
 
@@ -618,12 +652,12 @@ public:
     const String& message() override {
         if (!_message.length()) {
             auto& json = root();
-            json["dev"] = _ctx.device();
-            json["uniq_id"] = uniqueId();
+            json[F("dev")] = _ctx.device();
+            json[F("uniq_id")] = uniqueId();
 
-            json["name"] = _ctx.name() + ' ' + name() + ' ' + localId();
-            json["stat_t"] = mqttTopic(magnitudeTopicIndex(_index).c_str(), false);
-            json["unit_of_meas"] = magnitudeUnits(_index);
+            json[F("name")] = _ctx.name() + ' ' + name() + ' ' + localId();
+            json[F("stat_t")] = mqttTopic(magnitudeTopicIndex(_index), false);
+            json[F("unit_of_meas")] = magnitudeUnits(_index);
 
             json.printTo(_message);
         }
@@ -690,9 +724,9 @@ public:
     using Entity = std::unique_ptr<Discovery>;
     using Entities = std::forward_list<Entity>;
 
+    static constexpr espurna::duration::Milliseconds WaitShort { 100 };
+    static constexpr espurna::duration::Milliseconds WaitLong { 1000 };
     static constexpr int Retries { 5 };
-    static constexpr unsigned long WaitShortMs { 100ul };
-    static constexpr unsigned long WaitLongMs { 1000ul };
 
     DiscoveryTask(bool enabled) :
         _enabled(enabled)
@@ -770,6 +804,9 @@ private:
     Entities _entities;
 };
 
+constexpr espurna::duration::Milliseconds DiscoveryTask::WaitShort;
+constexpr espurna::duration::Milliseconds DiscoveryTask::WaitLong;
+
 namespace internal {
 
 using TaskPtr = std::shared_ptr<DiscoveryTask>;
@@ -800,18 +837,20 @@ void stop(bool done) {
     }
 }
 
-void schedule(unsigned long wait, TaskPtr ptr, FlagPtr flag_ptr) {
-    internal::timer.once_ms_scheduled(wait, [ptr, flag_ptr]() {
-        send(ptr, flag_ptr);
-    });
+void schedule(espurna::duration::Milliseconds wait, TaskPtr ptr, FlagPtr flag_ptr) {
+    internal::timer.once_ms_scheduled(
+        wait.count(),
+        [ptr, flag_ptr]() {
+            send(ptr, flag_ptr);
+        });
 }
 
 void schedule(TaskPtr ptr, FlagPtr flag_ptr) {
-    schedule(DiscoveryTask::WaitShortMs, ptr, flag_ptr);
+    schedule(DiscoveryTask::WaitShort, ptr, flag_ptr);
 }
 
 void schedule(TaskPtr ptr) {
-    schedule(DiscoveryTask::WaitShortMs, ptr, std::make_shared<bool>(true));
+    schedule(DiscoveryTask::WaitShort, ptr, std::make_shared<bool>(true));
 }
 
 void send(TaskPtr ptr, FlagPtr flag_ptr) {
@@ -853,8 +892,8 @@ void send(TaskPtr ptr, FlagPtr flag_ptr) {
 #endif
 
     auto wait = res
-        ? DiscoveryTask::WaitShortMs
-        : DiscoveryTask::WaitLongMs;
+        ? DiscoveryTask::WaitShort
+        : DiscoveryTask::WaitLong;
 
     if (res || task.retry()) {
         schedule(wait, ptr, flag_ptr);
@@ -893,8 +932,8 @@ void publishDiscovery() {
 
 void configure() {
     bool current = internal::enabled;
-    internal::enabled = getSetting("haEnabled", 1 == HOMEASSISTANT_ENABLED);
-    internal::retain = getSetting("haRetain", 1 == HOMEASSISTANT_RETAIN);
+    internal::enabled = settings::enabled();
+    internal::retain = settings::retain();
 
     if (internal::enabled != current) {
         internal::state = internal::State::Pending;
@@ -936,13 +975,13 @@ namespace web {
 #if WEB_SUPPORT
 
 void onVisible(JsonObject& root) {
-    root["haVisible"] = 1;
+    wsPayloadModule(root, "ha");
 }
 
 void onConnected(JsonObject& root) {
-    root["haPrefix"] = getSetting("haPrefix", HOMEASSISTANT_PREFIX);
-    root["haEnabled"] = getSetting("haEnabled", 1 == HOMEASSISTANT_ENABLED);
-    root["haRetain"] = getSetting("haRetain", 1 == HOMEASSISTANT_RETAIN);
+    root["haPrefix"] = settings::prefix();
+    root["haEnabled"] = settings::enabled();
+    root["haRetain"] = settings::retain();
 }
 
 bool onKeyCheck(const char* key, JsonVariant& value) {
@@ -952,6 +991,7 @@ bool onKeyCheck(const char* key, JsonVariant& value) {
 #endif
 
 } // namespace web
+} // namespace
 } // namespace homeassistant
 
 // This module no longer implements .yaml generation, since we can't:
@@ -969,15 +1009,14 @@ void haSetup() {
 #endif
 
 #if LIGHT_PROVIDER != LIGHT_PROVIDER_NONE
-    lightSetReportListener(homeassistant::publishLightJson);
+    lightOnReport(homeassistant::publishLightJson);
     mqttHeartbeat(homeassistant::heartbeat);
 #endif
     mqttRegister(homeassistant::mqttCallback);
 
 #if TERMINAL_SUPPORT
-    terminalRegisterCommand(F("HA.SEND"), [](const terminal::CommandContext& ctx) {
-        using namespace homeassistant::internal;
-        state = State::Pending;
+    terminalRegisterCommand(F("HA.SEND"), [](::terminal::CommandContext&& ctx) {
+        homeassistant::internal::state = homeassistant::internal::State::Pending;
         homeassistant::publishDiscovery();
         terminalOK(ctx);
     });

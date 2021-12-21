@@ -11,6 +11,8 @@ Copyright (C) 2017-2019 by Xose Pérez <xose dot perez at gmail dot com>
 #include "board.h"
 #include "ntp.h"
 
+#include <random>
+
 bool tryParseId(const char* p, TryParseIdFunc limit, size_t& out) {
     static_assert(std::numeric_limits<size_t>::max() >= std::numeric_limits<unsigned long>::max(), "");
 
@@ -23,11 +25,25 @@ bool tryParseId(const char* p, TryParseIdFunc limit, size_t& out) {
     return true;
 }
 
-void setDefaultHostname() {
+String getDescription() {
+    return getSetting("desc");
+}
+
+String getHostname() {
     if (strlen(HOSTNAME) > 0) {
-        setSetting("hostname", F(HOSTNAME));
-    } else {
-        setSetting("hostname", getIdentifier());
+        return getSetting("hostname", F(HOSTNAME));
+    }
+
+    return getSetting("hostname", getIdentifier());
+}
+
+void setDefaultHostname() {
+    if (!getSetting("hostname").length()) {
+        if (strlen(HOSTNAME) > 0) {
+            setSetting("hostname", F(HOSTNAME));
+        } else {
+            setSetting("hostname", getIdentifier());
+        }
     }
 }
 
@@ -79,14 +95,7 @@ const String& getCoreRevision() {
 }
 
 const char* getVersion() {
-    static const char version[] {
-#if defined(APP_REVISION)
-        APP_VERSION APP_REVISION
-#else
-        APP_VERSION
-#endif
-    };
-
+    static const char version[] = APP_VERSION;
     return version;
 }
 
@@ -115,6 +124,27 @@ const char* getManufacturer() {
     return manufacturer;
 }
 
+String prettyDuration(espurna::duration::Seconds seconds) {
+    time_t timestamp = static_cast<time_t>(seconds.count());
+    tm spec;
+    gmtime_r(&timestamp, &spec);
+
+    char buffer[64];
+    sprintf_P(buffer, PSTR("%02dy %02dd %02dh %02dm %02ds"),
+        (spec.tm_year - 70), spec.tm_yday, spec.tm_hour,
+        spec.tm_min, spec.tm_sec);
+
+    return String(buffer);
+}
+
+String getUptime() {
+#if NTP_SUPPORT
+    return prettyDuration(systemUptime());
+#else
+    return String(systemUptime().count(), 10);
+#endif
+}
+
 String buildTime() {
 #if NTP_SUPPORT
     constexpr const time_t ts = __UNIX_TIMESTAMP__;
@@ -122,7 +152,7 @@ String buildTime() {
     gmtime_r(&ts, &timestruct);
     return ntpDateTime(&timestruct);
 #else
-    char buffer[20];
+    char buffer[32];
     snprintf_P(
         buffer, sizeof(buffer), PSTR("%04d-%02d-%02d %02d:%02d:%02d"),
         __TIME_YEAR__, __TIME_MONTH__, __TIME_DAY__,
@@ -131,30 +161,6 @@ String buildTime() {
     return String(buffer);
 #endif
 }
-
-#if NTP_SUPPORT
-
-String getUptime() {
-    time_t uptime = systemUptime();
-    tm spec;
-    gmtime_r(&uptime, &spec);
-
-    char buffer[64];
-    sprintf_P(buffer, PSTR("%02dy %02dd %02dh %02dm %02ds"),
-        (spec.tm_year - 70), spec.tm_yday, spec.tm_hour,
-        spec.tm_min, spec.tm_sec
-    );
-
-    return String(buffer);
-}
-
-#else
-
-String getUptime() {
-    return String(systemUptime(), 10);
-}
-
-#endif // NTP_SUPPORT
 
 // -----------------------------------------------------------------------------
 // SSL
@@ -199,21 +205,28 @@ bool sslFingerPrintChar(const char * fingerprint, char * destination) {
 // Helper functions
 // -----------------------------------------------------------------------------
 
-char* ltrim(char * s) {
-    char *p = s;
-    while ((unsigned char) *p == ' ') ++p;
-    return p;
+// using 'random device' as-is, while most common implementations
+// would've used it as a seed for some generator func
+// TODO notice that stdlib std::mt19937 struct needs ~2KiB for it's internal
+// `result_type state[std::mt19937::state_size]` (ref. sizeof())
+uint32_t randomNumber(uint32_t minimum, uint32_t maximum) {
+    using Device = espurna::system::RandomDevice;
+    using Type = Device::result_type;
+
+    static Device random;
+    auto distribution = std::uniform_int_distribution<Type>(minimum, maximum);
+
+    return distribution(random);
+}
+
+uint32_t randomNumber() {
+    return (espurna::system::RandomDevice{})();
 }
 
 double roundTo(double num, unsigned char positions) {
     double multiplier = 1;
     while (positions-- > 0) multiplier *= 10;
     return round(num * multiplier) / multiplier;
-}
-
-void nice_delay(unsigned long ms) {
-    unsigned long start = millis();
-    while (millis() - start < ms) delay(1);
 }
 
 bool isNumber(const String& value) {
@@ -274,66 +287,126 @@ char* strnstr(const char* buffer, const char* token, size_t n) {
   return nullptr;
 }
 
+namespace {
+
 // From a byte array to an hexa char array ("A220EE...", double the size)
-size_t hexEncode(const uint8_t * in, size_t in_size, char * out, size_t out_size) {
-    if ((2 * in_size + 1) > (out_size)) return 0;
 
+template <typename T>
+const uint8_t* hexEncodeImpl(const uint8_t* in_begin, const uint8_t* in_end, T&& callback) {
     static const char base16[] = "0123456789ABCDEF";
-    size_t index = 0;
 
-    while (index < in_size) {
-        out[(index*2)]   = base16[(in[index] & 0xf0) >> 4];
-        out[(index*2)+1] = base16[(in[index] & 0xf)];
-        ++index;
+    constexpr uint8_t Left { 0xf0 };
+    constexpr uint8_t Right { 0xf };
+    constexpr uint8_t Shift { 4 };
+
+    auto* in_ptr = in_begin;
+    for (; in_ptr != in_end; ++in_ptr) {
+        char buf[2] {
+            base16[((*in_ptr) & Left) >> Shift],
+            base16[(*in_ptr) & Right]};
+        if (!callback(buf)) {
+            break;
+        }
     }
 
-    out[2*index] = '\0';
-
-    return index ? (1 + (2 * index)) : 0;
+    return in_ptr;
 }
 
+} // namespace
+
+char* hexEncode(const uint8_t* in_begin, const uint8_t* in_end, char* out_begin, char* out_end) {
+    char* out_ptr { out_begin };
+
+    hexEncodeImpl(in_begin, in_end, [&](const char (&byte)[2]) {
+        *(out_ptr) = byte[0];
+        ++out_ptr;
+
+        *(out_ptr) = byte[1];
+        ++out_ptr;
+
+        return out_ptr != out_end;
+    });
+
+    return out_ptr;
+}
+
+String hexEncode(const uint8_t* in_begin, const uint8_t* in_end) {
+    String out;
+    out.reserve(in_end - in_begin);
+
+    hexEncodeImpl(in_begin, in_end, [&](const char (&byte)[2]) {
+        out.concat(byte, 2);
+        return true;
+    });
+
+    return out;
+}
+
+size_t hexEncode(const uint8_t* in, size_t in_size, char* out, size_t out_size) {
+    if (out_size >= ((in_size * 2) + 1)) {
+        char* out_ptr = hexEncode(in, in + in_size, out, out + out_size);
+        *out_ptr = '\0';
+        ++out_ptr;
+        return out_ptr - out;
+    }
+
+    return 0;
+}
 
 // From an hexa char array ("A220EE...") to a byte array (half the size)
+
+uint8_t* hexDecode(const char* in_begin, const char* in_end, uint8_t* out_begin, uint8_t* out_end) {
+    // We can only return small values (max 'z' aka 122)
+    constexpr uint8_t InvalidByte { 255u };
+
+    auto char2byte = [](char ch) -> uint8_t {
+        switch (ch) {
+        case '0'...'9':
+            return (ch - '0');
+        case 'a'...'f':
+            return 10 + (ch - 'a');
+        case 'A'...'F':
+            return 10 + (ch - 'A');
+        }
+
+        return InvalidByte;
+    };
+
+    constexpr uint8_t Shift { 4 };
+
+    const char* in_ptr { in_begin };
+    uint8_t* out_ptr { out_begin };
+    while ((in_ptr != in_end) && (out_ptr != out_end)) {
+        uint8_t lhs = char2byte(*in_ptr);
+        if (lhs == InvalidByte) {
+            break;
+        }
+        ++in_ptr;
+
+        uint8_t rhs = char2byte(*in_ptr);
+        if (rhs == InvalidByte) {
+            break;
+        }
+        ++in_ptr;
+
+        (*out_ptr) = (lhs << Shift) | rhs;
+        ++out_ptr;
+    }
+
+    return out_ptr;
+}
+
 size_t hexDecode(const char* in, size_t in_size, uint8_t* out, size_t out_size) {
     if ((in_size & 1) || (out_size < (in_size / 2))) {
         return 0;
     }
 
-    // We can only return small values
-    constexpr uint8_t InvalidByte { 255u };
-
-    auto char2byte = [](char ch) -> uint8_t {
-        if ((ch >= '0') && (ch <= '9')) {
-            return (ch - '0');
-        } else if ((ch >= 'a') && (ch <= 'f')) {
-            return 10 + (ch - 'a');
-        } else if ((ch >= 'A') && (ch <= 'F')) {
-            return 10 + (ch - 'A');
-        } else {
-            return InvalidByte;
-        }
-    };
-
-    size_t index = 0;
-    size_t out_index = 0;
-
-    while (index < in_size) {
-        const uint8_t lhs = char2byte(in[index]) << 4;
-        const uint8_t rhs = char2byte(in[index + 1]);
-        if ((InvalidByte != lhs) && (InvalidByte != rhs)) {
-            out[out_index++] = lhs | rhs;
-            index += 2;
-            continue;
-        }
-        out_index = 0;
-        break;
-    }
-
-    return out_index;
+    uint8_t* out_ptr { hexDecode(in, in + in_size, out, out + out_size) };
+    return out_ptr - out;
 }
 
 const char* getFlashChipMode() {
-    const char* mode { nullptr };
+    static const char* mode { nullptr };
     if (!mode) {
         switch (ESP.getFlashChipMode()) {
         case FM_QIO:

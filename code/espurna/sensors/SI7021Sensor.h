@@ -120,8 +120,7 @@ class SI7021Sensor : public I2CSensor<> {
             if ((_chip != SI7021_CHIP_SI7021) & (_chip != SI7021_CHIP_HTU21D)) {
 
                 _count = 0;
-                i2cReleaseLock(_address);
-                _previous_address = 0;
+                _sensor_address.unlock();
                 _error = SENSOR_ERROR_UNKNOWN_ID;
 
                 // Setting _address to 0 forces auto-discover
@@ -145,7 +144,8 @@ class SI7021Sensor : public I2CSensor<> {
             // When not using clock stretching (*_NOHOLD commands) delay here
             // is needed to wait for the measurement.
             // According to datasheet the max. conversion time is ~22ms
-            nice_delay(50);
+            espurna::time::blockingDelay(
+                espurna::duration::Milliseconds(50));
 
             // Clear the last to bits of LSB to 00.
             // According to datasheet LSB of RH is always xxxxxx10

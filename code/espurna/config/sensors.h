@@ -21,7 +21,7 @@
 #endif
 
 #ifndef SENSOR_INIT_INTERVAL
-#define SENSOR_INIT_INTERVAL                10000           // Try to re-init non-ready sensors every 10s
+#define SENSOR_INIT_INTERVAL                10              // Try to re-init non-ready sensors every 10s
 #endif
 
 #ifndef SENSOR_REPORT_EVERY
@@ -45,16 +45,8 @@
 #define SENSOR_POWER_CHECK_STATUS           1               // If set to 1 the reported power/current/energy will be 0 if the relay[0] is OFF
 #endif
 
-#ifndef TEMPERATURE_MIN_CHANGE
-#define TEMPERATURE_MIN_CHANGE              0.0             // Minimum temperature change to report
-#endif
-
-#ifndef HUMIDITY_MIN_CHANGE
-#define HUMIDITY_MIN_CHANGE                 0.0             // Minimum humidity change to report
-#endif
-
-#ifndef ENERGY_MAX_CHANGE
-#define ENERGY_MAX_CHANGE                   0.0             // Maximum energy change to report (if >0 it will allways report when delta(E) is greater than this)
+#ifndef SENSOR_REAL_TIME_VALUES
+#define SENSOR_REAL_TIME_VALUES             0               // Show filtered/median values by default (0 => median, 1 => real time)
 #endif
 
 #ifndef SENSOR_SAVE_EVERY
@@ -418,10 +410,21 @@
 // Energy Monitor general settings
 //------------------------------------------------------------------------------
 
+#ifndef EMON_MAX_SAMPLES
 #define EMON_MAX_SAMPLES                1000        // Max number of samples to get
+#endif
+
+#ifndef EMON_MAX_TIME
 #define EMON_MAX_TIME                   250         // Max time in ms to sample
+#endif
+
+#ifndef EMON_FILTER_SPEED
 #define EMON_FILTER_SPEED               512         // Mobile average filter speed
+#endif
+
+#ifndef EMON_REFERENCE_VOLTAGE
 #define EMON_REFERENCE_VOLTAGE          3.3         // Reference voltage of the ADC
+#endif
 
 #ifndef EMON_MAINS_VOLTAGE
 #define EMON_MAINS_VOLTAGE              230         // Mains voltage
@@ -432,7 +435,6 @@
 #endif
 
 #ifndef EMON_REPORT_CURRENT
-
 #define EMON_REPORT_CURRENT             0           // Report current
 #endif
 
@@ -470,9 +472,24 @@
 #define EMON_ADS1X15_I2C_ADDRESS        0x00    // 0x00 means auto
 #endif
 
+#ifndef EMON_ADS1X15_TYPE
 #define EMON_ADS1X15_TYPE               ADS1X15_CHIP_ADS1115
+#endif
+
+#ifndef EMON_ADS1X15_GAIN
 #define EMON_ADS1X15_GAIN               ADS1X15_REG_CONFIG_PGA_4_096V
-#define EMON_ADS1X15_MASK               0x0F    // A0=1 A1=2 A2=4 A3=8
+#endif
+
+#ifndef EMON_ADS1X15_DATARATE
+#define EMON_ADS1X15_DATARATE           ADS1X15_REG_CONFIG_DR_MASK
+#endif
+
+#ifndef EMON_ADS1X15_MASK
+#define EMON_ADS1X15_MASK               0x0F    // A0=1 aka 0b1
+                                                // A1=2 aka 0b10
+                                                // A2=4 aka 0b100
+                                                // A3=8 aka 0b1000
+#endif
 
 //------------------------------------------------------------------------------
 // Energy Monitor based on interval analog GPIO
@@ -481,6 +498,10 @@
 
 #ifndef EMON_ANALOG_SUPPORT
 #define EMON_ANALOG_SUPPORT             0       // Do not build support by default
+#endif
+
+#ifndef EMON_ANALOG_RESOLUTION
+#define EMON_ANALOG_RESOLUTION          10      // ADC resolution (in bits)
 #endif
 
 //------------------------------------------------------------------------------
@@ -700,15 +721,15 @@
 #endif
 
 #ifndef HLW8012_CURRENT_RATIO
-#define HLW8012_CURRENT_RATIO           0.0       // Set to 0.0 to use factory defaults
+#define HLW8012_CURRENT_RATIO           HLW8012_DEFAULT_CURRENT_RATIO   // Value multiplier, internally used to scale RAW current
 #endif
 
 #ifndef HLW8012_VOLTAGE_RATIO
-#define HLW8012_VOLTAGE_RATIO           0.0       // Set to 0.0 to use factory defaults
+#define HLW8012_VOLTAGE_RATIO           HLW8012_DEFAULT_VOLTAGE_RATIO   // Value multiplier, internally used to scale RAW voltage
 #endif
 
 #ifndef HLW8012_POWER_RATIO
-#define HLW8012_POWER_RATIO             0.0       // Set to 0.0 to use factory defaults
+#define HLW8012_POWER_RATIO             HLW8012_DEFAULT_POWER_RATIO     // Value multiplier, internally used to scale RAW active power
 #endif
 
 #ifndef HLW8012_USE_INTERRUPTS
@@ -927,6 +948,7 @@
 
 #ifndef PZEM004T_USE_SOFT
 #define PZEM004T_USE_SOFT               0       // By default, use Hardware serial with GPIO15 (TX) and GPIO13 (RX)
+                                                // (but, make sure to change DEBUG_PORT to Serial1 or set DEBUG_SERIAL_SUPPORT to 0)
 #endif
 
 #ifndef PZEM004T_RX_PIN
@@ -942,16 +964,30 @@
                                                 // ESP8266: Serial1 does not allow receiving data, no point in changing this setting
 #endif
 
-#ifndef PZEM004T_ADDRESSES
-#define PZEM004T_ADDRESSES              "192.168.1.1"  // Device(s) address(es), separated by space, "192.168.1.1 192.168.1.2 192.168.1.3"
-#endif
-
 #ifndef PZEM004T_READ_INTERVAL
-#define PZEM004T_READ_INTERVAL          1500    // Read interval between same device
+#define PZEM004T_READ_INTERVAL          1000    // (ms) Minimum interval between device readings. When there are more than one device, interval will be shared
+                                                // between devices and each reading will happen after 'interval value' multiplied by the number of devices
 #endif
 
-#ifndef PZEM004T_MAX_DEVICES
-#define PZEM004T_MAX_DEVICES            3
+#ifndef PZEM004T_DEVICES_MAX
+#define PZEM004T_DEVICES_MAX            4       // Maximum number of active devices
+#endif
+
+#ifndef PZEM004T_ADDRESS_1
+#define PZEM004T_ADDRESS_1            "192.168.1.1" // Device address, represented as an IPv4 string
+                                                    // Only the first address is enabled by default. To have more devices, fill in other addresses here, in the custom.h or through settings (pzemAddr#)
+#endif
+
+#ifndef PZEM004T_ADDRESS_2
+#define PZEM004T_ADDRESS_2            ""            // Only one device enabled by default
+#endif
+
+#ifndef PZEM004T_ADDRESS_3
+#define PZEM004T_ADDRESS_3            ""            // Only one device enabled by default
+#endif
+
+#ifndef PZEM004T_ADDRESS_4
+#define PZEM004T_ADDRESS_4            ""            // Only one device enabled by default
 #endif
 
 //------------------------------------------------------------------------------
@@ -969,7 +1005,12 @@
 
 #ifndef PZEM004TV30_USE_SOFT
 #define PZEM004TV30_USE_SOFT               0       // By default, use Hardware serial with GPIO15 (TX) and GPIO13 (RX)
-                                                   // (but, make sure that DEBUG_SERIAL_SUPPORT is set to 0)
+                                                   // (but, make sure to change DEBUG_PORT to Serial1 or set DEBUG_SERIAL_SUPPORT to 0)
+#endif
+
+#ifndef PZEM004TV30_HW_PORT
+#define PZEM004TV30_HW_PORT                Serial  // Hardware serial port (if PZEM004TV30_USE_SOFT == 0)
+                                                   // ESP8266: Serial1 does not allow receiving data, no point in changing this setting
 #endif
 
 #ifndef PZEM004TV30_RX_PIN
@@ -1042,6 +1083,23 @@
 
 #ifndef SI7021_ADDRESS
 #define SI7021_ADDRESS                  0x00    // 0x00 means auto
+#endif
+
+//------------------------------------------------------------------------------
+// SM300D2 sensor
+// Enable support by passing SM300D2_SUPPORT=1 build flag
+//------------------------------------------------------------------------------
+
+#ifndef SM300D2_SUPPORT
+#define SM300D2_SUPPORT                   0
+#endif
+
+#ifndef SM300D2_RX_PIN
+#define SM300D2_RX_PIN                    13
+#endif
+
+#ifndef SM300D2_BAUDRATE
+#define SM300D2_BAUDRATE                  9600
 #endif
 
 //------------------------------------------------------------------------------
@@ -1243,6 +1301,14 @@
 #define ADE7953_ADDRESS                  0x38
 #endif
 
+#ifndef ADE7953_LINE_CYCLES
+#define ADE7953_LINE_CYCLES              50.0f
+#endif
+
+#ifndef ADE7953_CURRENT_THRESHOLD
+#define ADE7953_CURRENT_THRESHOLD        2000
+#endif
+
 // -----------------------------------------------------------------------------
 // SI1145 UV Sensor over I2C
 // Enable support by passing SI1145_SUPPORT=1 build flag
@@ -1397,6 +1463,7 @@
     SHT3X_I2C_SUPPORT || \
     SI1145_SUPPORT || \
     SI7021_SUPPORT || \
+    SM300D2_SUPPORT || \
     SONAR_SUPPORT || \
     T6613_SUPPORT || \
     THERMOSTAT_SUPPORT || \

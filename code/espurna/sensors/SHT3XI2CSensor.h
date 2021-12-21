@@ -34,10 +34,12 @@ class SHT3XI2CSensor : public I2CSensor<> {
             if (!_dirty) return;
 
             // I2C auto-discover
-            unsigned char addresses[] = {0x45};
+            unsigned char addresses[] = {0x44,0x45};
             _address = _begin_i2c(_address, sizeof(addresses), addresses);
             if (_address == 0) return;
-
+            i2c_write_uint8(_address, 0x30, 0xA2); // Soft reset to ensure sensor in default state
+            espurna::time::blockingDelay(
+                espurna::duration::Milliseconds(500));
             _ready = true;
             _dirty = false;
 
@@ -63,8 +65,9 @@ class SHT3XI2CSensor : public I2CSensor<> {
             _error = SENSOR_ERROR_OK;
 
             unsigned char buffer[6];
-            i2c_write_uint8(_address, 0x2C, 0x06);
-            nice_delay(500);
+            i2c_write_uint8(_address, 0x2C, 0x06); // Measurement High Repeatability with Clock Stretch Enabled
+            espurna::time::blockingDelay(
+                espurna::duration::Milliseconds(500));
             i2c_read_buffer(_address, buffer, 6);
 
             // cTemp msb, cTemp lsb, cTemp crc, humidity msb, humidity lsb, humidity crc

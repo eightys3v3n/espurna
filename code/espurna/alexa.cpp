@@ -6,12 +6,13 @@ Copyright (C) 2016-2019 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
-#include "alexa.h"
+#include "espurna.h"
 
 #if ALEXA_SUPPORT
 
 #include <queue>
 
+#include "alexa.h"
 #include "api.h"
 #include "light.h"
 #include "mqtt.h"
@@ -52,37 +53,95 @@ private:
 };
 
 std::queue<AlexaEvent> _alexa_events;
-
 fauxmoESP _alexa;
 
-} // namespace
+namespace alexa {
+namespace build {
+
+constexpr bool createServer() {
+    return !WEB_SUPPORT;
+}
+
+constexpr uint16_t port() {
+    return 80;
+}
+
+const __FlashStringHelper* hostname() {
+    return F(ALEXA_HOSTNAME);
+}
+
+constexpr bool enabled() {
+    return 1 == ALEXA_ENABLED;
+}
+
+} // namespace build
+namespace settings {
+
+bool enabled() {
+    return getSetting("alexaEnabled", build::enabled());
+}
+
+// Use custom alexa hostname if defined, device hostname otherwise
+String hostname() {
+    auto out = getSetting("alexaName", build::hostname());
+    if (!out.length()) {
+        out = getHostname();
+    }
+
+    return out;
+}
+
+} // namespace settings
+} // namespace alexa
+
+void _alexaSettingsMigrate(int version) {
+    if (version < 3) {
+        moveSetting("fauxmoEnabled", "alexaEnabled");
+    }
+}
 
 // -----------------------------------------------------------------------------
 // ALEXA
 // -----------------------------------------------------------------------------
 
-bool _alexaWebSocketOnKeyCheck(const char * key, JsonVariant& value) {
+void _alexaWebSocketOnVisible(JsonObject& root) {
+    wsPayloadModule(root, "alexa");
+}
+
+bool _alexaWebSocketOnKeyCheck(const char * key, JsonVariant&) {
     return (strncmp(key, "alexa", 5) == 0);
 }
 
 void _alexaWebSocketOnConnected(JsonObject& root) {
-    root["alexaEnabled"] = alexaEnabled();
-    root["alexaName"] = getSetting("alexaName");
+    root["alexaEnabled"] = alexa::settings::enabled();
+    root["alexaName"] = alexa::settings::hostname();
 }
 
 void _alexaConfigure() {
-    _alexa.enable(wifiConnected() && alexaEnabled());
+    _alexa.enable(wifiConnected() && alexa::settings::enabled());
 }
 
 #if WEB_SUPPORT
-    bool _alexaBodyCallback(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-        return _alexa.process(request->client(), request->method() == HTTP_GET, request->url(), String((char *)data));
+bool _alexaBodyCallback(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    if (len != total) {
+        DEBUG_MSG_P(PSTR("[ALEXA] Ignoring incomplete %s %s from %s (%zu / %zu)\n"),
+                request->methodToString(),
+                request->url().c_str(),
+                IPAddress(request->client()->getRemoteAddress()).toString().c_str(),
+                len, index);
+        return false;
     }
 
-    bool _alexaRequestCallback(AsyncWebServerRequest *request) {
-        String body = (request->hasParam("body", true)) ? request->getParam("body", true)->value() : String();
-        return _alexa.process(request->client(), request->method() == HTTP_GET, request->url(), body);
-    }
+    String payload;
+    payload.concat(reinterpret_cast<char*>(data), len);
+
+    return _alexa.process(request->client(), request->method() == HTTP_GET, request->url(), payload);
+}
+
+bool _alexaRequestCallback(AsyncWebServerRequest *request) {
+    String body = (request->hasParam("body", true)) ? request->getParam("body", true)->value() : String();
+    return _alexa.process(request->client(), request->method() == HTTP_GET, request->url(), body);
+}
 #endif
 
 #if LIGHT_PROVIDER != LIGHT_PROVIDER_NONE
@@ -97,23 +156,15 @@ void _alexaUpdateLights() {
     }
 }
 
-#endif
-
-#if RELAY_SUPPORT
+#elif RELAY_SUPPORT
 
 void _alexaUpdateRelay(size_t id, bool status) {
     _alexa.setState(id, status, status ? 255 : 0);
 }
 
 #endif
-// -----------------------------------------------------------------------------
 
-bool alexaEnabled() {
-    return getSetting("alexaEnabled", 1 == ALEXA_ENABLED);
-}
-
-void alexaLoop() {
-
+void _alexaLoop() {
     _alexa.handle();
 
     while (!_alexa_events.empty()) {
@@ -135,38 +186,25 @@ void alexaLoop() {
 
         _alexa_events.pop();
     }
-
 }
 
-constexpr bool _alexaCreateServer() {
-    return !WEB_SUPPORT;
-}
+} // namespace
 
-constexpr const char* _alexaHostname() {
-    return ALEXA_HOSTNAME;
-}
+// -----------------------------------------------------------------------------
 
-
-void _alexaSettingsMigrate(int version) {
-    if (version && (version < 3)) {
-        moveSetting("fauxmoEnabled", "alexaEnabled");
-    }
+bool alexaEnabled() {
+    return alexa::settings::enabled();
 }
 
 void alexaSetup() {
     // Backwards compatibility
-    _alexaSettingsMigrate(migrateVersion());
+    migrateVersion(_alexaSettingsMigrate);
 
     // Basic fauxmoESP configuration
-    _alexa.createServer(_alexaCreateServer());
-    _alexa.setPort(80);
+    _alexa.createServer(alexa::build::createServer());
+    _alexa.setPort(alexa::build::port());
 
-    // Use custom alexa hostname if defined, device hostname otherwise
-    String hostname = getSetting("alexaName", _alexaHostname());
-    if (!hostname.length()) {
-        hostname = getSetting("hostname", getIdentifier());
-    }
-
+    auto hostname = alexa::settings::hostname();
     auto deviceName = [&](size_t index) {
         auto name = hostname;
         name += ' ';
@@ -199,7 +237,7 @@ void alexaSetup() {
         webBodyRegister(_alexaBodyCallback);
         webRequestRegister(_alexaRequestCallback);
         wsRegister()
-            .onVisible([](JsonObject& root) { root["alexaVisible"] = 1; })
+            .onVisible(_alexaWebSocketOnVisible)
             .onConnected(_alexaWebSocketOnConnected)
             .onKeyCheck(_alexaWebSocketOnKeyCheck);
     #endif
@@ -219,14 +257,13 @@ void alexaSetup() {
 
     // Register main callbacks
 #if LIGHT_PROVIDER != LIGHT_PROVIDER_NONE
-    lightSetReportListener(_alexaUpdateLights);
-#else
-    relaySetStatusChange(_alexaUpdateRelay);
+    lightOnReport(_alexaUpdateLights);
+#elif RELAY_SUPPORT
+    relayOnStatusChange(_alexaUpdateRelay);
 #endif
 
     espurnaRegisterReload(_alexaConfigure);
-    espurnaRegisterLoop(alexaLoop);
-
+    espurnaRegisterLoop(_alexaLoop);
 }
 
 #endif
