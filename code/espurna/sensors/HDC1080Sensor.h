@@ -116,8 +116,7 @@ class HDC1080Sensor : public I2CSensor<> {
             DEBUG_MSG_P(PSTR("[HDC1080] ERROR: Expected Device ID %04X, received %04X\n"), HDC1080_DEVICE_ID, _device_id);
 
             _count = 0;
-            i2cReleaseLock(_address);
-            _previous_address = 0;
+            _sensor_address.unlock();
             _error = SENSOR_ERROR_UNKNOWN_ID;
 
             // Setting _address to 0 forces auto-discover
@@ -136,7 +135,8 @@ class HDC1080Sensor : public I2CSensor<> {
             // When not using clock stretching (*_NOHOLD commands) delay here
             // is needed to wait for the measurement.
             // According to datasheet the max. conversion time is ~22ms
-            nice_delay(50);
+            espurna::time::blockingDelay(
+                espurna::duration::Milliseconds(50));
 
             // Clear the last to bits of LSB to 00.
             // According to datasheet LSB of Temp and RH is always xxxxxx00

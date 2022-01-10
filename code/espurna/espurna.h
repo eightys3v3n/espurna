@@ -44,7 +44,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #if DEBUG_SUPPORT
 #define DEBUG_MSG(...) debugSend(__VA_ARGS__)
-#define DEBUG_MSG_P(...) debugSend_P(__VA_ARGS__)
+#define DEBUG_MSG_P(...) debugSend(__VA_ARGS__)
 #endif
 
 #ifndef DEBUG_MSG
@@ -52,13 +52,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEBUG_MSG_P(...)
 #endif
 
-using LoopCallback = void (*)();
-
-void espurnaRegisterLoop(LoopCallback callback);
-void espurnaRegisterReload(LoopCallback callback);
+using ReloadCallback = void (*)();
+void espurnaRegisterReload(ReloadCallback);
 void espurnaReload();
 
-unsigned long espurnaLoopDelay();
-void espurnaLoopDelay(unsigned long);
+using LoopCallback = void (*)();
+void espurnaRegisterLoop(LoopCallback);
+
+espurna::duration::Milliseconds espurnaLoopDelay();
+void espurnaLoopDelay(espurna::duration::Milliseconds);
 
 void extraSetup();

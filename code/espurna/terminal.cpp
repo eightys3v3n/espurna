@@ -13,11 +13,12 @@ Copyright (C) 2020 by Maxim Prokhorov <prokhorov dot max at outlook dot com>
 
 #include "api.h"
 #include "crash.h"
+#include "mqtt.h"
 #include "settings.h"
 #include "system.h"
 #include "telnet.h"
+#include "terminal.h"
 #include "utils.h"
-#include "mqtt.h"
 #include "wifi.h"
 #include "ws.h"
 
@@ -25,10 +26,9 @@ Copyright (C) 2020 by Maxim Prokhorov <prokhorov dot max at outlook dot com>
 #include "libs/StreamAdapter.h"
 #include "libs/PrintString.h"
 
-#include "web_asyncwebprint_impl.h"
+#include "web_asyncwebprint.ipp"
 
 #include <algorithm>
-#include <vector>
 #include <utility>
 
 #include <Schedule.h>
@@ -118,6 +118,7 @@ struct TerminalIO final : public Stream {
         _read = _write;
     }
 
+    // TODO: allow DEBUG_SUPPORT=0 :/
     size_t write(const uint8_t* bytes, size_t size) override {
 #if DEBUG_SUPPORT
         debugSendBytes(bytes, size);
@@ -140,8 +141,6 @@ constexpr size_t _terminalBufferSize() {
     return TERMINAL_SHARED_BUFFER_SIZE;
 }
 
-namespace {
-
 using Io = TerminalIO<_terminalBufferSize()>;
 
 Io _io;
@@ -152,17 +151,15 @@ terminal::Terminal _terminal(_io, Io::capacity());
 
 constexpr size_t SerialRxBufferSize { 128u };
 char _serial_rx_buffer[SerialRxBufferSize];
-static unsigned char _serial_rx_pointer = 0;
+unsigned char _serial_rx_pointer = 0;
 
 #endif // SERIAL_RX_ENABLED
-
-} // namespace
 
 // -----------------------------------------------------------------------------
 // Commands
 // -----------------------------------------------------------------------------
 
-void _terminalHelpCommand(const terminal::CommandContext& ctx) {
+void _terminalHelpCommand(::terminal::CommandContext&& ctx) {
     auto names = _terminal.names();
 
     // XXX: Core's ..._P funcs only allow 2nd pointer to be in PROGMEM,
@@ -348,21 +345,19 @@ private:
     uint32_t _sectors;
 };
 
-
 void _terminalInitCommands() {
 
     terminalRegisterCommand(F("COMMANDS"), _terminalHelpCommand);
     terminalRegisterCommand(F("HELP"), _terminalHelpCommand);
 
-    terminalRegisterCommand(F("ERASE.CONFIG"), [](const terminal::CommandContext&) {
+    terminalRegisterCommand(F("ERASE.CONFIG"), [](::terminal::CommandContext&&) {
         terminalOK();
         customResetReason(CustomResetReason::Terminal);
-        eraseSDKConfig();
-        *((int*) 0) = 0; // see https://github.com/esp8266/Arduino/issues/1494
+        forceEraseSDKConfig();
     });
 
-    terminalRegisterCommand(F("ADC"), [](const terminal::CommandContext& ctx) {
-        const int pin = (ctx.argc == 2)
+    terminalRegisterCommand(F("ADC"), [](::terminal::CommandContext&& ctx) {
+        const int pin = (ctx.argv.size() == 2)
             ? ctx.argv[1].toInt()
             : A0;
 
@@ -370,8 +365,8 @@ void _terminalInitCommands() {
         terminalOK(ctx);
     });
 
-    terminalRegisterCommand(F("GPIO"), [](const terminal::CommandContext& ctx) {
-        const int pin = (ctx.argc >= 2)
+    terminalRegisterCommand(F("GPIO"), [](::terminal::CommandContext&& ctx) {
+        const int pin = (ctx.argv.size() >= 2)
             ? ctx.argv[1].toInt()
             : -1;
 
@@ -383,7 +378,7 @@ void _terminalInitCommands() {
         int start = 0;
         int end = gpioPins();
 
-        switch (ctx.argc) {
+        switch (ctx.argv.size()) {
         case 3:
             pinMode(pin, OUTPUT);
             digitalWrite(pin, (1 == ctx.argv[2].toInt()));
@@ -391,7 +386,7 @@ void _terminalInitCommands() {
         case 2:
             start = pin;
             end = pin + 1;
-            // fallthrough into print
+            // fallthrough!
         case 1:
             for (auto current = start; current < end; ++current) {
                 if (gpioValid(current)) {
@@ -409,29 +404,23 @@ void _terminalInitCommands() {
         terminalOK(ctx);
     });
 
-    terminalRegisterCommand(F("HEAP"), [](const terminal::CommandContext& ctx) {
-        static auto initial = systemInitialFreeHeap();
-
-        auto stats = systemHeapStats();
-        ctx.output.printf_P(PSTR("initial: %u, available: %u, fragmentation: %hhu%%\n"),
-            initial, stats.available, stats.frag_pct);
+    terminalRegisterCommand(F("HEAP"), [](::terminal::CommandContext&& ctx) {
+        const auto stats = systemHeapStats();
+        ctx.output.printf_P(PSTR("initial: %lu available: %lu contiguous: %hu\n"),
+            systemInitialFreeHeap(), stats.available, stats.usable);
 
         terminalOK(ctx);
     });
 
-    terminalRegisterCommand(F("STACK"), [](const terminal::CommandContext& ctx) {
+    terminalRegisterCommand(F("STACK"), [](::terminal::CommandContext&& ctx) {
         ctx.output.printf_P(PSTR("continuation stack initial: %d, free: %u\n"),
             CONT_STACKSIZE, systemFreeStack());
         terminalOK(ctx);
     });
 
-    terminalRegisterCommand(F("INFO"), [](const terminal::CommandContext& ctx) {
-        if (!systemCheck()) {
-            ctx.output.print(F("\n\n!!! device is in safe mode !!!\n\n"));
-        }
-
+    terminalRegisterCommand(F("INFO"), [](::terminal::CommandContext&& ctx) {
         ctx.output.printf_P(PSTR("%s %s built %s\n"), getAppName(), getVersion(), buildTime().c_str());
-        ctx.output.printf_P(PSTR("mcu: esp8266 chipid: %s\n"), getFullChipId().c_str());
+        ctx.output.printf_P(PSTR("mcu: esp8266 chipid: %s freq: %hhumhz\n"), getFullChipId().c_str(), system_get_cpu_freq());
         ctx.output.printf_P(PSTR("sdk: %s core: %s\n"),
                 ESP.getSdkVersion(), getCoreVersion().c_str());
         ctx.output.printf_P(PSTR("md5: %s\n"), ESP.getSketchMD5().c_str());
@@ -439,14 +428,17 @@ void _terminalInitCommands() {
 #if SENSOR_SUPPORT
         ctx.output.printf_P(PSTR("sensors: %s\n"), getEspurnaSensors());
 #endif
-
+#if SYSTEM_CHECK_ENABLED
+        ctx.output.printf_P(PSTR("system: %s boot counter: %u\n"),
+            systemCheck() ? PSTR("OK") : PSTR("UNSTABLE"), systemStabilityCounter());
+#endif
 #if DEBUG_SUPPORT
         crashResetReason(ctx.output);
 #endif
         terminalOK(ctx);
     });
 
-    terminalRegisterCommand(F("STORAGE"), [](const terminal::CommandContext& ctx) {
+    terminalRegisterCommand(F("STORAGE"), [](::terminal::CommandContext&& ctx) {
         ctx.output.printf_P(PSTR("flash chip ID: 0x%06X\n"), ESP.getFlashChipId());
         ctx.output.printf_P(PSTR("speed: %u\n"), ESP.getFlashChipSpeed());
         ctx.output.printf_P(PSTR("mode: %s\n"), getFlashChipMode());
@@ -454,38 +446,39 @@ void _terminalInitCommands() {
         ctx.output.printf_P(PSTR("size: %u (SPI), %u (SDK)\n"),
             ESP.getFlashChipRealSize(), ESP.getFlashChipSize());
 
-        Layouts layout(ESP.getFlashChipRealSize());
+        Layouts layouts(ESP.getFlashChipRealSize());
 
         // SDK specifies a hard-coded layout, there's no data beyond
         // (...addressable by the Core, since it adheres the setting)
         if (ESP.getFlashChipRealSize() > ESP.getFlashChipSize()) {
-            layout.add("unused", ESP.getFlashChipRealSize() - ESP.getFlashChipSize());
+            layouts.add("unused", ESP.getFlashChipRealSize() - ESP.getFlashChipSize());
         }
 
         // app is at a normal location, [0...size), but... since it is offset by the free space, make sure it is aligned
         // to the sector size (...and it is expected from the getFreeSketchSpace, as the app will align to use the fixed
         // sector address for OTA writes).
-
-        layout.add("sdk", 4 * SPI_FLASH_SEC_SIZE);
-        layout.add("eeprom", eepromSpace());
+        layouts.add("sdk", 4 * SPI_FLASH_SEC_SIZE);
+        layouts.add("eeprom", eepromSpace());
 
         auto app_size = (ESP.getSketchSize() + FLASH_SECTOR_SIZE - 1) & (~(FLASH_SECTOR_SIZE - 1));
-        auto ota_size = layout.current() - app_size;
+        auto ota_size = layouts.current() - app_size;
 
         // OTA is allowed to use all but one eeprom sectors that, leaving the last one
         // for the settings snapshot during the update
+        layouts.add("ota", ota_size);
+        layouts.add("app", app_size);
 
-        layout.add("ota", ota_size);
-        layout.add("app", app_size);
-
-        layout.foreach([&](const Layout& l) {
-            ctx.output.printf_P("%-6s [%08X...%08X) (%u bytes)\n", l.name(), l.start(), l.end(), l.size());
+        layouts.foreach([&](const Layout& layout) {
+            ctx.output.printf_P("%-6s [%08X...%08X) (%u bytes)\n",
+                    layout.name(), layout.start(), layout.end(), layout.size());
         });
+
+        terminalOK(ctx);
     });
 
-    terminalRegisterCommand(F("RESET"), [](const terminal::CommandContext& ctx) {
+    terminalRegisterCommand(F("RESET"), [](::terminal::CommandContext&& ctx) {
         auto count = 1;
-        if (ctx.argc == 2) {
+        if (ctx.argv.size() == 2) {
             count = ctx.argv[1].toInt();
             if (count < SYSTEM_CHECK_MAX) {
                 systemStabilityCounter(count);
@@ -493,22 +486,22 @@ void _terminalInitCommands() {
         }
 
         terminalOK(ctx);
-        deferredReset(100, CustomResetReason::Terminal);
+        prepareReset(CustomResetReason::Terminal);
     });
 
-    terminalRegisterCommand(F("UPTIME"), [](const terminal::CommandContext& ctx) {
+    terminalRegisterCommand(F("UPTIME"), [](::terminal::CommandContext&& ctx) {
         ctx.output.printf_P(PSTR("uptime %s\n"), getUptime().c_str());
         terminalOK(ctx);
     });
 
 #if SECURE_CLIENT == SECURE_CLIENT_BEARSSL
-    terminalRegisterCommand(F("MFLN.PROBE"), [](const terminal::CommandContext& ctx) {
-        if (ctx.argc != 3) {
+    terminalRegisterCommand(F("MFLN.PROBE"), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() != 3) {
             terminalError(ctx, F("<url> <value>"));
             return;
         }
 
-        URL _url(ctx.argv[1]);
+        URL _url(std::move(ctx.argv[1]));
         uint16_t requested_mfln = atol(ctx.argv[2].c_str());
 
         auto client = std::make_unique<BearSSL::WiFiClientSecure>();
@@ -523,13 +516,13 @@ void _terminalInitCommands() {
     });
 #endif
 
-    terminalRegisterCommand(F("HOST"), [](const terminal::CommandContext& ctx) {
-        if (ctx.argc != 2) {
+    terminalRegisterCommand(F("HOST"), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() != 2) {
             terminalError(ctx, F("<hostname>"));
             return;
         }
 
-        dns::start(String(ctx.argv[1]), [&](const char* name, const ip_addr_t* addr, void*) {
+        dns::start(std::move(ctx.argv[1]), [&](const char* name, const ip_addr_t* addr, void*) {
             if (!addr) {
                 ctx.output.printf_P(PSTR("%s not found\n"), name);
                 return;
@@ -544,7 +537,7 @@ void _terminalInitCommands() {
         }
     });
 
-    terminalRegisterCommand(F("NETSTAT"), [](const terminal::CommandContext& ctx) {
+    terminalRegisterCommand(F("NETSTAT"), [](::terminal::CommandContext&& ctx) {
         auto print = [](Print& out, tcp_pcb* list) {
             for (tcp_pcb* pcb = list; pcb != nullptr; pcb = pcb->next) {
                 out.printf_P(PSTR("state %s local %s:%hu remote %s:%hu\n"),
@@ -564,6 +557,7 @@ void _terminalInitCommands() {
 
 void _terminalLoop() {
 
+    // TODO: custom Stream input, don't depend on debug logging output as input
 #if DEBUG_SERIAL_SUPPORT
     while (DEBUG_PORT.available()) {
         _io.inject(DEBUG_PORT.read());
@@ -617,14 +611,14 @@ void _terminalLoop() {
 
 void _terminalMqttSetup() {
 
-    mqttRegister([](unsigned int type, const char * topic, const char * payload) {
+    mqttRegister([](unsigned int type, const char* topic, char* payload) {
         if (type == MQTT_CONNECT_EVENT) {
             mqttSubscribe(MQTT_TOPIC_CMD);
             return;
         }
 
         if (type == MQTT_MESSAGE_EVENT) {
-            String t = mqttMagnitude((char *) topic);
+            String t = mqttMagnitude(topic);
             if (!t.startsWith(MQTT_TOPIC_CMD)) return;
             if (!strlen(payload)) return;
 
@@ -664,6 +658,14 @@ void _terminalMqttSetup() {
 }
 
 #endif // MQTT_SUPPORT && TERMINAL_MQTT_SUPPORT
+
+#if WEB_SUPPORT
+
+void _terminalWebSocketOnVisible(JsonObject& root) {
+    wsPayloadModule(root, "cmd");
+}
+
+#endif
 
 } // namespace
 
@@ -778,18 +780,18 @@ void terminalRegisterCommand(const __FlashStringHelper* name, terminal::Terminal
 };
 
 void terminalOK(Print& print) {
-    print.print(F("OK\n"));
+    print.print(F("+OK\n"));
 }
 
 void terminalError(Print& print, const String& error) {
     print.printf_P(PSTR("-ERROR: %s\n"), error.c_str());
 }
 
-void terminalOK(const terminal::CommandContext& ctx) {
+void terminalOK(const ::terminal::CommandContext& ctx) {
     terminalOK(ctx.output);
 }
 
-void terminalError(const terminal::CommandContext& ctx, const String& error) {
+void terminalError(const ::terminal::CommandContext& ctx, const String& error) {
     terminalError(ctx.output, error);
 }
 
@@ -806,7 +808,7 @@ void terminalSetup() {
     // Show DEBUG panel with input
     #if WEB_SUPPORT
         wsRegister()
-            .onVisible([](JsonObject& root) { root["cmdVisible"] = 1; });
+            .onVisible(_terminalWebSocketOnVisible);
     #endif
 
     // Similar to the above, but we allow only very small and in-place outputs.

@@ -10,10 +10,11 @@ Copyright (C) 2020 - Eric Chauvet
 
 */
 
-#include "curtain_kingart.h"
+#include "espurna.h"
 
 #if KINGART_CURTAIN_SUPPORT
 
+#include "curtain_kingart.h"
 #include "mqtt.h"
 #include "ntp.h"
 #include "ntp_timelib.h"
@@ -344,7 +345,7 @@ void _KACurtainResult() {
     if (buffer.indexOf("enterESPTOUCH") > 0) {
         wifiStartAp();
     } else if (buffer.indexOf("exitESPTOUCH") > 0) {
-        deferredReset(100, CustomResetReason::Hardware);
+        prepareReset(CustomResetReason::Hardware);
     } else { //In any other case, update as it could be a move action
         curtainUpdateUI();
     }
@@ -357,12 +358,12 @@ void _KACurtainResult() {
 #if MQTT_SUPPORT
 
 //------------------------------------------------------------------------------
-void _curtainMQTTCallback(unsigned int type, const char * topic, char * payload) {
+void _curtainMQTTCallback(unsigned int type, const char* topic, char* payload) {
     if (type == MQTT_CONNECT_EVENT) {
         mqttSubscribe(MQTT_TOPIC_CURTAIN);
     } else if (type == MQTT_MESSAGE_EVENT) {
         // Match topic
-        const String t = mqttMagnitude(const_cast<char*>(topic));
+        const String t = mqttMagnitude(topic);
         if (t.equals(MQTT_TOPIC_CURTAIN)) {
             if (strcmp(payload, "pause") == 0) {
                 _KACurtainSet(CURTAIN_BUTTON_PAUSE);
@@ -390,7 +391,6 @@ void _curtainMQTTCallback(unsigned int type, const char * topic, char * payload)
 void _curtainWebSocketOnConnected(JsonObject& root) {
     root["curtainType"] = getSetting("curtainType", "0");
     root["curtainBoot"] = getSetting("curtainBoot", "0");
-    root["curtainConfig"] = 1;
 }
 
 //------------------------------------------------------------------------------
@@ -432,7 +432,7 @@ void _curtainWebSocketOnAction(uint32_t client_id, const char * action, JsonObje
 }
 
 void _curtainWebSocketOnVisible(JsonObject& root) {
-    root["curtainVisible"] = 1;
+    wsPayloadModule(root, "curtain");
 }
 
 #endif //WEB_SUPPORT

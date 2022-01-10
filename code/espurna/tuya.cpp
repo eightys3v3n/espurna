@@ -8,13 +8,14 @@ Copyright (C) 2019-2021 by Maxim Prokhorov <prokhorov dot max at outlook dot com
 
 // ref: https://docs.tuya.com/en/mcu/mcu-protocol.html
 
-#include "tuya.h"
+#include "espurna.h"
 
 #if TUYA_SUPPORT
 
 #include "light.h"
 #include "relay.h"
 #include "rpc.h"
+#include "tuya.h"
 
 #include "libs/OnceFlag.h"
 
@@ -184,8 +185,8 @@ namespace tuya {
     void updatePins(uint8_t led, uint8_t rst) {
         static bool done { false };
         if (!done) {
-            addConfig("ledGPIO0", String(led));
-            addConfig("btnGPIO0", String(rst));
+            addConfig("ledGpio0", String(led));
+            addConfig("btnGpio0", String(rst));
             done = true;
         }
     }
@@ -611,7 +612,7 @@ error:
 
         #if TERMINAL_SUPPORT
 
-            terminalRegisterCommand(F("TUYA.SHOW"), [](const terminal::CommandContext& ctx) {
+            terminalRegisterCommand(F("TUYA.SHOW"), [](::terminal::CommandContext&& ctx) {
                 ctx.output.printf_P(PSTR("Product: %s\n"), product.length() ? product.c_str() : "(unknown)");
 
                 ctx.output.print(F("\nConfig:\n"));
@@ -633,7 +634,7 @@ error:
                 }
             });
 
-            terminalRegisterCommand(F("TUYA.SAVE"), [](const terminal::CommandContext&) {
+            terminalRegisterCommand(F("TUYA.SAVE"), [](::terminal::CommandContext&&) {
                 for (auto& kv : config) {
                     setSetting(kv.key, kv.value);
                 }

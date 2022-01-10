@@ -6,15 +6,16 @@ Copyright (C) 2017 by Dmitry Blinov <dblinov76 at gmail dot com>
 
 */
 
-#include "thermostat.h"
+#include "espurna.h"
 
 #if THERMOSTAT_SUPPORT
 
+#include "mqtt.h"
 #include "ntp.h"
 #include "ntp_timelib.h"
 #include "relay.h"
 #include "sensor.h"
-#include "mqtt.h"
+#include "thermostat.h"
 #include "ws.h"
 
 #include <ArduinoJson.h>
@@ -120,34 +121,37 @@ void thermostatRegister(thermostat_callback_f callback) {
 //------------------------------------------------------------------------------
 void updateRemoteTemp(bool remote_temp_actual) {
   #if WEB_SUPPORT
-      char tmp_str[16];
+      String out("?");
+
       if (remote_temp_actual) {
-        dtostrf(_remote_temp.temp, 1, 1, tmp_str);
-      } else {
-        strcpy(tmp_str, "\"?\"");
+        char tmp[33] {0};
+        dtostrf(_remote_temp.temp, 1, 1, tmp);
+        out = tmp;
       }
-      char buffer[128];
-      snprintf_P(buffer, sizeof(buffer), PSTR("{\"thermostatVisible\": 1, \"remoteTmp\": %s}"), tmp_str);
-      wsSend(buffer);
+
+      wsPost([out](JsonObject& root) {
+        root["remoteTmp"] = out;
+      });
   #endif
 }
 
 //------------------------------------------------------------------------------
 void updateOperationMode() {
   #if WEB_SUPPORT
-    String message(F("{\"thermostatVisible\": 1, \"thermostatOperationMode\": \""));
+    String message;
     if (_thermostat.temperature_source == temp_remote) {
-      message += F("remote temperature");
+      message = F("remote temperature");
       updateRemoteTemp(true);
     } else if (_thermostat.temperature_source == temp_local) {
-      message += F("local temperature");
+      message = F("local temperature");
       updateRemoteTemp(false);
     } else {
-      message += F("autonomous");
+      message = F("autonomous");
       updateRemoteTemp(false);
     }
-    message += F("\"}");
-    wsSend(message.c_str());
+    wsPost([message](JsonObject& root) {
+      root[NAME_OPERATION_MODE] = message;
+    });
   #endif
 }
 
@@ -155,14 +159,14 @@ void updateOperationMode() {
 // MQTT
 //------------------------------------------------------------------------------
 
-bool _thermostatMqttHeartbeat(heartbeat::Mask mask) {
-    if (mask & heartbeat::Report::Range) {
+bool _thermostatMqttHeartbeat(espurna::heartbeat::Mask mask) {
+    if (mask & espurna::heartbeat::Report::Range) {
         const auto& range = thermostatRange();
         mqttSend(MQTT_TOPIC_HOLD_TEMP "_" MQTT_TOPIC_HOLD_TEMP_MIN, String(range.min).c_str());
         mqttSend(MQTT_TOPIC_HOLD_TEMP "_" MQTT_TOPIC_HOLD_TEMP_MAX, String(range.max).c_str());
     }
 
-    if (mask & heartbeat::Report::RemoteTemp) {
+    if (mask & espurna::heartbeat::Report::RemoteTemp) {
         const auto& remote_temp = thermostatRemoteTemp();
         char buffer[16];
         dtostrf(remote_temp.temp, 1, 1, buffer);
@@ -172,7 +176,7 @@ bool _thermostatMqttHeartbeat(heartbeat::Mask mask) {
     return mqttConnected();
 }
 
-void thermostatMqttCallback(unsigned int type, const char * topic, const char * payload) {
+void thermostatMqttCallback(unsigned int type, const char* topic, char* payload) {
 
     if (type == MQTT_CONNECT_EVENT) {
       mqttSubscribeRaw(thermostat_remote_sensor_topic.c_str());
@@ -182,7 +186,7 @@ void thermostatMqttCallback(unsigned int type, const char * topic, const char * 
     if (type == MQTT_MESSAGE_EVENT) {
 
         // Match topic
-        String t = mqttMagnitude((char *) topic);
+        String t = mqttMagnitude(topic);
 
         if (strcmp(topic, thermostat_remote_sensor_topic.c_str()) != 0
          && !t.equals(MQTT_TOPIC_HOLD_TEMP))
@@ -229,11 +233,13 @@ void thermostatMqttCallback(unsigned int type, const char * topic, const char * 
 
                 DEBUG_MSG_P(PSTR("[THERMOSTAT] Hold temperature range: (%d - %d)\n"), _temp_range.min, _temp_range.max);
                 // Update websocket clients
-                #if WEB_SUPPORT
-                    char buffer[100];
-                    snprintf_P(buffer, sizeof(buffer), PSTR("{\"thermostatVisible\": 1, \"tempRangeMin\": %d, \"tempRangeMax\": %d}"), _temp_range.min, _temp_range.max);
-                    wsSend(buffer);
-                #endif
+#if WEB_SUPPORT
+                auto range = _temp_range;
+                wsPost([range](JsonObject& root) {
+                    root["tempRangeMin"] = range.min;
+                    root["tempRangeMax"] = range.max;
+                });
+#endif
             } else {
                 DEBUG_MSG_P(PSTR("[THERMOSTAT] Error temperature range data\n"));
             }
@@ -414,7 +420,18 @@ double _getLocalValue(const char* description, unsigned char type) {
         return value.get();
     }
 #endif
-  return std::numeric_limits<double>::quiet_NaN();
+    return std::numeric_limits<double>::quiet_NaN();
+}
+
+String _getLocalUnit(unsigned char type) {
+#if SENSOR_SUPPORT
+    for (unsigned char index = 0; index < magnitudeCount(); ++index) {
+        if (magnitudeType(index) == type) {
+            return magnitudeUnits(index);
+        }
+    }
+#endif
+    return F("none");
 }
 
 double getLocalTemperature() {
@@ -763,10 +780,14 @@ void displayLoop() {
 
 #if WEB_SUPPORT
 //------------------------------------------------------------------------------
+void _thermostatWebSocketOnVisible(JsonObject& root) {
+    wsPayloadModule(root, "thermostat");
+}
+
 void _thermostatWebSocketOnConnected(JsonObject& root) {
   root["thermostatEnabled"] = thermostatEnabled();
   root["thermostatMode"] = thermostatModeCooler();
-  root["thermostatVisible"] = 1;
+  root["thermostatTmpUnits"] = _getLocalUnit(MAGNITUDE_TEMPERATURE);
   root[NAME_TEMP_RANGE_MIN] = _temp_range.min;
   root[NAME_TEMP_RANGE_MAX] = _temp_range.max;
   root[NAME_REMOTE_SENSOR_NAME] = _thermostat.remote_sensor_name;
@@ -832,6 +853,7 @@ void thermostatSetup() {
   // Websockets
   #if WEB_SUPPORT
       wsRegister()
+          .onVisible(_thermostatWebSocketOnVisible)
           .onConnected(_thermostatWebSocketOnConnected)
           .onKeyCheck(_thermostatWebSocketOnKeyCheck)
           .onAction(_thermostatWebSocketOnAction);

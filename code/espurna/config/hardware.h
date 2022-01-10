@@ -61,7 +61,6 @@
     #define ALEXA_SUPPORT           0
     #define API_SUPPORT             0
     #define DEBUG_SERIAL_SUPPORT    0
-    #define DEBUG_TELNET_SUPPORT    0
     #define DEBUG_WEB_SUPPORT       0
     #define DOMOTICZ_SUPPORT        0
     #define HOMEASSISTANT_SUPPORT   0
@@ -74,14 +73,16 @@
     #define THINGSPEAK_SUPPORT      0
     #define WEB_SUPPORT             0
 
+    #define DEBUG_TELNET_SUPPORT    1
     #define TELNET_AUTHENTICATION   0
     #define TELNET_STA              1
 
     // Extra light-weight image
-    //#define BUTTON_SUPPORT          0 // don't need / have buttons
-    //#define LED_SUPPORT             0 // don't need wifi indicator
-    //#define RELAY_SUPPORT           0 // don't need to preserve pin state between resets
-    //#define OTA_ARDUINOOTA_SUPPORT  0 // when only using `ota` command
+    #define BUTTON_SUPPORT          0 // don't need / have buttons
+    #define LED_SUPPORT             0 // don't need wifi indicator
+    #define RELAY_SUPPORT           0 // don't need to preserve pin state between resets
+    //#define OTA_ARDUINOOTA_SUPPORT  0 // when only using the `ota` command
+    //#define OTA_WEB_SUPPORT         0 //
     //#define MDNS_SERVER_SUPPORT     0 //
     //#define TELNET_SUPPORT          0 // when only using espota.py
     //#define TERMINAL_SUPPORT        0 //
@@ -98,10 +99,9 @@
     // Disable non-core modules
     #define ALEXA_SUPPORT           0
     #define API_SUPPORT             0
-    #define DOMOTICZ_SUPPORT        0
     #define DEBUG_SERIAL_SUPPORT    0
-    //#define DEBUG_TELNET_SUPPORT    0
-    //#define DEBUG_WEB_SUPPORT       0
+    #define DEBUG_WEB_SUPPORT       0
+    #define DOMOTICZ_SUPPORT        0
     #define HOMEASSISTANT_SUPPORT   0
     #define I2C_SUPPORT             0
     #define MQTT_SUPPORT            0
@@ -109,16 +109,22 @@
     #define SCHEDULER_SUPPORT       0
     #define SENSOR_SUPPORT          0
     #define THINGSPEAK_SUPPORT      0
-    //#define WEB_SUPPORT             0
-    #define WEB_FORCE_PASS_CHANGE   0
 
+    // Small webpage to upload the .bin
+    #define MDNS_SERVER_SUPPORT     0
+    #define WEB_SUPPORT             0
+    #define OTA_ARDUINOOTA_SUPPORT  0
+    #define OTA_WEB_SUPPORT         1
+
+    // Keep the generic uploader
+    #define DEBUG_TELNET_SUPPORT    1
     #define TELNET_AUTHENTICATION   0
     #define TELNET_STA              1
 
     // Extra light-weight image
-    #define BUTTON_SUPPORT          0
-    #define LED_SUPPORT             0
-    //#define MDNS_SERVER_SUPPORT     0
+    #define BUTTON_SUPPORT          0 // don't need / have buttons
+    #define LED_SUPPORT             0 // don't need wifi indicator
+    #define RELAY_SUPPORT           0 // don't need to preserve pin state between resets
     //#define TELNET_SUPPORT          0
     //#define TERMINAL_SUPPORT        0
 
@@ -1303,7 +1309,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           4
-    #define IR_BUTTON_SET       1
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        1
 
 #elif defined(MAGICHOME_LED_CONTROLLER_20)
 
@@ -1325,7 +1332,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           4
-    #define IR_BUTTON_SET       1
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        1
 
 #elif defined(MAGICHOME_ZJ_WFMN_A_11)
 
@@ -1349,7 +1357,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           4
-    #define IR_BUTTON_SET       1
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        1
 
 #elif defined(MAGICHOME_ZJ_WFMN_B_11)
 
@@ -4294,14 +4303,20 @@
     #define SERIAL_BAUDRATE         19200
 
     // Relays
-    #define RELAY_PROVIDER_DUAL_SUPPORT 1
+    #define LIGHTFOX_RELAYS         2
 
-    #define RELAY1_PROVIDER         RELAY_PROVIDER_DUAL
-    #define RELAY2_PROVIDER         RELAY_PROVIDER_DUAL
+    // Buttons
+    #define LIGHTFOX_BUTTONS        4
 
-    // No need to include generic GPIO support
-    // "Buttons" are attached to a secondary MCU and RELAY_PROVIDER_DUAL handles that
-    #define BUTTON_PROVIDER_GPIO_SUPPORT    0
+    #define BUTTON1_CLICK           BUTTON_ACTION_TOGGLE
+    #define BUTTON2_CLICK           BUTTON_ACTION_TOGGLE
+    #define BUTTON3_CLICK           BUTTON_ACTION_TOGGLE
+    #define BUTTON4_CLICK           BUTTON_ACTION_TOGGLE
+
+    #define BUTTON1_RELAY           1
+    #define BUTTON2_RELAY           2
+    #define BUTTON3_RELAY           2
+    #define BUTTON4_RELAY           1
 
     // Conflicts with relay operation
     #define DEBUG_SERIAL_SUPPORT            0
@@ -4703,8 +4718,6 @@
     #define MANUFACTURER            "KINGART"
     #define DEVICE                  "CURTAIN_SWITCH"
 
-    #define CURTAIN_SUPPORT         1
-
     // LEDs
     #define LED1_PIN                13
     #define LED1_PIN_INVERSE        1
@@ -4737,7 +4750,8 @@
     // IR
     #define IR_SUPPORT          1
     #define IR_RX_PIN           0
-    #define IR_BUTTON_SET       5
+    #define IR_TX_SUPPORT       0
+    #define IR_RX_PRESET        5
 
 // -----------------------------------------------------------------------------
 // eHomeDIY WT02
@@ -4981,6 +4995,145 @@
     #define LIGHT_CH1_INVERSE             0
     #define LIGHT_CH2_PIN                 4       // COLD WHITE LED PWM PIN
     #define LIGHT_CH2_INVERSE             0
+
+// -----------------------------------------------------------------------------
+// Mirabella Genio White A60
+// https://www.woolworths.com.au/shop/productdetails/877102/mirabella-smart-led-gls-es-9w-cool-white
+// Like https://www.mirabellagenio.com.au/product-range/mirabella-genio-wi-fi-dimmable-9w-led-gls-bulb/ 
+// but in cardboard box, Item # I002604
+// -----------------------------------------------------------------------------
+
+#elif defined(MIRABELLA_GENIO_W_A60)
+
+    // Info
+    #define MANUFACTURER        "MIRABELLA"
+    #define DEVICE              "GENIO_W_A60"
+    #define LIGHT_PROVIDER      LIGHT_PROVIDER_DIMMER
+
+    // Light
+    #define LIGHT_CH1_PIN       14       // WHITE
+
+// -----------------------------------------------------------------------------
+// https://www.amazon.co.uk/gp/product/B086MV5MC8
+//
+// These don't come with an esp8266 anymore, but can be trivially converted
+// as the new chip is pin compatible. Note, GPIO15 needs to be connected to
+// GND on 1 and 2 gang switches in order to enable the ESP to boot.
+//
+// Older versions and some US models may still ship with ESP8266.
+//
+// Caution, do NOT solder a serial port while the board is connected to the mains baseboard,
+// it will blow your fuse and your USB!
+// If you need to flash with a programmer, use a bench power supply on the logic board only!
+// -----------------------------------------------------------------------------
+
+#elif defined(YAGUSMART_TOUCH_HWMOD_1G)
+    #define MANUFACTURER        "YAGUSMART"
+    #define DEVICE              "TOUCH_HWMOD_1G"
+
+    #define BUTTON1_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
+    #define BUTTON1_PIN         3
+    #define BUTTON1_RELAY       1
+    #define BUTTON1_PRESS       BUTTON_ACTION_TOGGLE
+    #define BUTTON1_CLICK       BUTTON_ACTION_NONE
+
+    #define RELAY1_TYPE         RELAY_TYPE_NORMAL
+    #define RELAY1_PIN          13
+
+    #define LED2_PIN                    14
+    #define LED2_PIN_INVERSE            1
+    #define LED2_MODE                   LED_MODE_FOLLOW
+    #define LED2_RELAY                  1
+
+    #define LED1_PIN                    0
+    #define LED1_PIN_INVERSE            1
+    #define LED1_MODE                   LED_MODE_WIFI
+
+    #define DEBUG_SERIAL_SUPPORT        0
+
+#elif defined(YAGUSMART_TOUCH_HWMOD_2G)
+    #define MANUFACTURER        "YAGUSMART"
+    #define DEVICE              "TOUCH_HWMOD_2G"
+
+    #define BUTTON1_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
+    #define BUTTON1_PIN         3
+    #define BUTTON1_RELAY       1
+    #define BUTTON1_PRESS       BUTTON_ACTION_TOGGLE
+    #define BUTTON1_CLICK       BUTTON_ACTION_NONE
+
+    #define BUTTON2_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
+    #define BUTTON2_PIN         5
+    #define BUTTON2_RELAY       2
+    #define BUTTON2_PRESS       BUTTON_ACTION_TOGGLE
+    #define BUTTON2_CLICK       BUTTON_ACTION_NONE
+
+    #define RELAY1_TYPE         RELAY_TYPE_NORMAL
+    #define RELAY1_PIN          13
+    #define RELAY2_TYPE         RELAY_TYPE_NORMAL
+    #define RELAY2_PIN          4
+
+    #define LED2_PIN                    14
+    #define LED2_PIN_INVERSE            1
+    #define LED2_MODE                   LED_MODE_FOLLOW
+    #define LED2_RELAY                  1
+
+    #define LED3_PIN                    1
+    #define LED3_PIN_INVERSE            1
+    #define LED3_MODE                   LED_MODE_FOLLOW
+    #define LED3_RELAY                  2
+
+    #define LED1_PIN                    0
+    #define LED1_PIN_INVERSE            1
+    #define LED1_MODE                   LED_MODE_WIFI
+
+    #define DEBUG_SERIAL_SUPPORT        0
+
+#elif defined(YAGUSMART_TOUCH_HWMOD_3G)
+    #define MANUFACTURER        "YAGUSMART"
+    #define DEVICE              "TOUCH_HWMOD_3G"
+
+    #define BUTTON1_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH | BUTTON_SET_PULLUP
+    #define BUTTON1_PIN         12
+    #define BUTTON1_PRESS       BUTTON_ACTION_TOGGLE
+    #define BUTTON1_CLICK       BUTTON_ACTION_NONE
+
+    #define BUTTON2_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH | BUTTON_SET_PULLUP
+    #define BUTTON2_PIN         3
+    #define BUTTON2_PRESS       BUTTON_ACTION_TOGGLE
+    #define BUTTON2_CLICK       BUTTON_ACTION_NONE
+
+    #define BUTTON3_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH | BUTTON_SET_PULLUP
+    #define BUTTON3_PIN         5
+    #define BUTTON3_PRESS       BUTTON_ACTION_TOGGLE
+    #define BUTTON3_CLICK       BUTTON_ACTION_NONE
+
+    #define RELAY1_TYPE         RELAY_TYPE_NORMAL
+    #define RELAY1_PIN          13
+    #define RELAY2_TYPE         RELAY_TYPE_NORMAL
+    #define RELAY2_PIN          4
+    #define RELAY3_TYPE         RELAY_TYPE_NORMAL
+    #define RELAY3_PIN          15
+
+    #define LED2_PIN                    16
+    #define LED2_PIN_INVERSE            1
+    #define LED2_MODE                   LED_MODE_FOLLOW
+    #define LED2_RELAY                  1
+
+    #define LED3_PIN                    14
+    #define LED3_PIN_INVERSE            1
+    #define LED3_MODE                   LED_MODE_FOLLOW
+    #define LED3_RELAY                  2
+
+    #define LED4_PIN                    1
+    #define LED4_PIN_INVERSE            1
+    #define LED4_MODE                   LED_MODE_FOLLOW
+    #define LED4_RELAY                  3
+
+    #define LED1_PIN                    0
+    #define LED1_PIN_INVERSE            1
+    #define LED1_MODE                   LED_MODE_WIFI
+
+    #define DEBUG_SERIAL_SUPPORT        0
 
 #else
 
