@@ -7,7 +7,7 @@ Adapted by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
-#include "scheduler.h"
+#include "espurna.h"
 
 #if SCHEDULER_SUPPORT
 
@@ -16,9 +16,10 @@ Adapted by Xose Pérez <xose dot perez at gmail dot com>
 #include "mqtt.h"
 #include "ntp.h"
 #include "ntp_timelib.h"
-#include "relay.h"
-#include "ws.h"
 #include "curtain_kingart.h"
+#include "relay.h"
+#include "scheduler.h"
+#include "ws.h"
 
 // -----------------------------------------------------------------------------
 
@@ -58,8 +59,8 @@ constexpr int action() {
     return 0;
 }
 
-constexpr const char* const weekdays() {
-    return SCHEDULER_WEEKDAYS;
+const __FlashStringHelper* weekdays() {
+    return F(SCHEDULER_WEEKDAYS);
 }
 
 constexpr bool restoreLast() {
@@ -636,6 +637,10 @@ void schSetup() {
 
     static bool initial { true };
     ntpOnTick([](NtpTick tick) {
+        if (tick != NtpTick::EveryMinute) {
+            return;
+        }
+
         auto timestamp = now();
         auto schedules = scheduler::settings::schedules();
         if (initial) {

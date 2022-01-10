@@ -11,6 +11,8 @@ Copyright (C) 2017-2019 by Xose Pérez <xose dot perez at gmail dot com>
 #include "board.h"
 #include "ntp.h"
 
+#include <random>
+
 bool tryParseId(const char* p, TryParseIdFunc limit, size_t& out) {
     static_assert(std::numeric_limits<size_t>::max() >= std::numeric_limits<unsigned long>::max(), "");
 
@@ -23,11 +25,25 @@ bool tryParseId(const char* p, TryParseIdFunc limit, size_t& out) {
     return true;
 }
 
-void setDefaultHostname() {
+String getDescription() {
+    return getSetting("desc");
+}
+
+String getHostname() {
     if (strlen(HOSTNAME) > 0) {
-        setSetting("hostname", F(HOSTNAME));
-    } else {
-        setSetting("hostname", getIdentifier());
+        return getSetting("hostname", F(HOSTNAME));
+    }
+
+    return getSetting("hostname", getIdentifier());
+}
+
+void setDefaultHostname() {
+    if (!getSetting("hostname").length()) {
+        if (strlen(HOSTNAME) > 0) {
+            setSetting("hostname", F(HOSTNAME));
+        } else {
+            setSetting("hostname", getIdentifier());
+        }
     }
 }
 
@@ -108,6 +124,27 @@ const char* getManufacturer() {
     return manufacturer;
 }
 
+String prettyDuration(espurna::duration::Seconds seconds) {
+    time_t timestamp = static_cast<time_t>(seconds.count());
+    tm spec;
+    gmtime_r(&timestamp, &spec);
+
+    char buffer[64];
+    sprintf_P(buffer, PSTR("%02dy %02dd %02dh %02dm %02ds"),
+        (spec.tm_year - 70), spec.tm_yday, spec.tm_hour,
+        spec.tm_min, spec.tm_sec);
+
+    return String(buffer);
+}
+
+String getUptime() {
+#if NTP_SUPPORT
+    return prettyDuration(systemUptime());
+#else
+    return String(systemUptime().count(), 10);
+#endif
+}
+
 String buildTime() {
 #if NTP_SUPPORT
     constexpr const time_t ts = __UNIX_TIMESTAMP__;
@@ -115,7 +152,7 @@ String buildTime() {
     gmtime_r(&ts, &timestruct);
     return ntpDateTime(&timestruct);
 #else
-    char buffer[20];
+    char buffer[32];
     snprintf_P(
         buffer, sizeof(buffer), PSTR("%04d-%02d-%02d %02d:%02d:%02d"),
         __TIME_YEAR__, __TIME_MONTH__, __TIME_DAY__,
@@ -124,30 +161,6 @@ String buildTime() {
     return String(buffer);
 #endif
 }
-
-#if NTP_SUPPORT
-
-String getUptime() {
-    time_t uptime = systemUptime();
-    tm spec;
-    gmtime_r(&uptime, &spec);
-
-    char buffer[64];
-    sprintf_P(buffer, PSTR("%02dy %02dd %02dh %02dm %02ds"),
-        (spec.tm_year - 70), spec.tm_yday, spec.tm_hour,
-        spec.tm_min, spec.tm_sec
-    );
-
-    return String(buffer);
-}
-
-#else
-
-String getUptime() {
-    return String(systemUptime(), 10);
-}
-
-#endif // NTP_SUPPORT
 
 // -----------------------------------------------------------------------------
 // SSL
@@ -192,15 +205,28 @@ bool sslFingerPrintChar(const char * fingerprint, char * destination) {
 // Helper functions
 // -----------------------------------------------------------------------------
 
+// using 'random device' as-is, while most common implementations
+// would've used it as a seed for some generator func
+// TODO notice that stdlib std::mt19937 struct needs ~2KiB for it's internal
+// `result_type state[std::mt19937::state_size]` (ref. sizeof())
+uint32_t randomNumber(uint32_t minimum, uint32_t maximum) {
+    using Device = espurna::system::RandomDevice;
+    using Type = Device::result_type;
+
+    static Device random;
+    auto distribution = std::uniform_int_distribution<Type>(minimum, maximum);
+
+    return distribution(random);
+}
+
+uint32_t randomNumber() {
+    return (espurna::system::RandomDevice{})();
+}
+
 double roundTo(double num, unsigned char positions) {
     double multiplier = 1;
     while (positions-- > 0) multiplier *= 10;
     return round(num * multiplier) / multiplier;
-}
-
-void nice_delay(unsigned long ms) {
-    unsigned long start = millis();
-    while (millis() - start < ms) delay(1);
 }
 
 bool isNumber(const String& value) {
@@ -380,7 +406,7 @@ size_t hexDecode(const char* in, size_t in_size, uint8_t* out, size_t out_size) 
 }
 
 const char* getFlashChipMode() {
-    const char* mode { nullptr };
+    static const char* mode { nullptr };
     if (!mode) {
         switch (ESP.getFlashChipMode()) {
         case FM_QIO:

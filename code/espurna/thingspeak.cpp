@@ -6,17 +6,18 @@ Copyright (C) 2019 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
-#include "thingspeak.h"
+#include "espurna.h"
 
 #if THINGSPEAK_SUPPORT
-
-#include <memory>
 
 #include "mqtt.h"
 #include "relay.h"
 #include "rpc.h"
 #include "sensor.h"
+#include "thingspeak.h"
 #include "ws.h"
+
+#include <memory>
 
 #if THINGSPEAK_USE_ASYNC
 #include <ESPAsyncTCP.h>
@@ -108,7 +109,9 @@ void _tspkWebSocketOnConnected(JsonObject& root) {
     }
 
     #if SENSOR_SUPPORT
-        sensorWebSocketMagnitudes(root, "tspk");
+        sensorWebSocketMagnitudes(root, "tspk", [](JsonArray& out, size_t index) {
+            out.add(getSetting({"tspkMagnitude", index}, "0"));
+        });
     #endif
 
 }

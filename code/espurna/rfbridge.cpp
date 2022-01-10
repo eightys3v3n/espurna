@@ -6,12 +6,13 @@ Copyright (C) 2016-2019 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
-#include "rfbridge.h"
+#include "espurna.h"
 
 #if RFB_SUPPORT
 
 #include "api.h"
 #include "relay.h"
+#include "rfbridge.h"
 #include "terminal.h"
 #include "mqtt.h"
 #include "ws.h"
@@ -32,7 +33,7 @@ unsigned char _rfb_repeats = RFB_SEND_REPEATS;
 #if RFB_PROVIDER == RFB_PROVIDER_RCSWITCH
 
 #include <RCSwitch.h>
-RCSwitch * _rfb_modem;
+std::unique_ptr<RCSwitch> _rfb_modem;
 bool _rfb_receive { false };
 bool _rfb_transmit { false };
 
@@ -733,28 +734,29 @@ size_t _rfb_bytes_for_bits(size_t bits) {
     return bytes;
 }
 
-// TODO: RCSwitch code type: long unsigned int != uint32_t, thus the specialization
-static_assert(sizeof(uint32_t) == sizeof(long unsigned int), "");
-
+// internally, library encodes the received data payload into an integer
+// as the result, we are capped to 8bytes to things larger than that are silently ignored
+// resulting type depends on the currently used rcswitch implementation
+// (also notice the use of `long unsigned int`, since we have strict type match)
 template <typename T>
-T _rfb_bswap(T value);
+inline T _rfb_bswap(T);
 
 template <>
-[[gnu::unused]] uint32_t _rfb_bswap(uint32_t value) {
+[[gnu::unused]] inline uint32_t _rfb_bswap(uint32_t value) {
     return __builtin_bswap32(value);
 }
 
 template <>
-[[gnu::unused]] long unsigned int _rfb_bswap(long unsigned int value) {
-    return __builtin_bswap32(value);
-}
-
-template <>
-[[gnu::unused]] uint64_t _rfb_bswap(uint64_t value) {
+[[gnu::unused]] inline uint64_t _rfb_bswap(uint64_t value) {
     return __builtin_bswap64(value);
 }
 
+template <>
+[[gnu::unused]] inline long unsigned int _rfb_bswap(long unsigned int value) {
+    return __builtin_bswap32(value);
 }
+
+} // namespace
 
 void _rfbEnqueue(uint8_t protocol, uint16_t timing, uint8_t bits, RfbMessage::code_type code, unsigned char repeats = 1u) {
     if (!_rfb_transmit) return;
@@ -1047,7 +1049,7 @@ void _rfbApiSetup() {
                     _rfb_learn->id, _rfb_learn->status ? 't' : 'f'
                 );
             } else {
-                snprintf_P(buffer, sizeof(buffer), PSTR("waiting"));
+                memcpy_P(buffer, PSTR("waiting"), sizeof("waiting"));
             }
             request.send(buffer);
             return true;
@@ -1075,8 +1077,8 @@ void _rfbApiSetup() {
 
 #if TERMINAL_SUPPORT
 
-void _rfbCommandStatusDispatch(const terminal::CommandContext& ctx, size_t id, const String& payload, RelayStatusCallback callback) {
-    auto parsed = rpcParsePayload(payload.c_str());
+void _rfbCommandStatusDispatch(::terminal::CommandContext&& ctx, size_t id, RelayStatusCallback callback) {
+    auto parsed = rpcParsePayload(ctx.argv[2].c_str());
     switch (parsed) {
     case PayloadStatus::On:
     case PayloadStatus::Off:
@@ -1091,8 +1093,8 @@ void _rfbCommandStatusDispatch(const terminal::CommandContext& ctx, size_t id, c
 
 void _rfbInitCommands() {
 
-    terminalRegisterCommand(F("RFB.SEND"), [](const terminal::CommandContext& ctx) {
-        if (ctx.argc == 2) {
+    terminalRegisterCommand(F("RFB.SEND"), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() == 2) {
             rfbSend(ctx.argv[1]);
             return;
         }
@@ -1101,8 +1103,8 @@ void _rfbInitCommands() {
     });
 
 #if RELAY_SUPPORT
-    terminalRegisterCommand(F("RFB.LEARN"), [](const terminal::CommandContext& ctx) {
-        if (ctx.argc != 3) {
+    terminalRegisterCommand(F("RFB.LEARN"), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() != 3) {
             terminalError(ctx, F("RFB.LEARN <ID> <STATUS>"));
             return;
         }
@@ -1113,11 +1115,11 @@ void _rfbInitCommands() {
             return;
         }
 
-        _rfbCommandStatusDispatch(ctx, id, ctx.argv[2], rfbLearn);
+        _rfbCommandStatusDispatch(std::move(ctx), id, rfbLearn);
     });
 
-    terminalRegisterCommand(F("RFB.FORGET"), [](const terminal::CommandContext& ctx) {
-        if (ctx.argc < 2) {
+    terminalRegisterCommand(F("RFB.FORGET"), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() < 2) {
             terminalError(ctx, F("RFB.FORGET <ID> [<STATUS>]"));
             return;
         }
@@ -1128,8 +1130,8 @@ void _rfbInitCommands() {
             return;
         }
 
-        if (ctx.argc == 3) {
-            _rfbCommandStatusDispatch(ctx, id, ctx.argv[2], rfbForget);
+        if (ctx.argv.size() == 3) {
+            _rfbCommandStatusDispatch(std::move(ctx), id, rfbForget);
             return;
         }
 
@@ -1141,8 +1143,8 @@ void _rfbInitCommands() {
 #endif // if RELAY_SUPPORT
 
 #if RFB_PROVIDER == RFB_PROVIDER_EFM8BB1
-    terminalRegisterCommand(F("RFB.WRITE"), [](const terminal::CommandContext& ctx) {
-        if (ctx.argc != 2) {
+    terminalRegisterCommand(F("RFB.WRITE"), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() != 2) {
             terminalError(ctx, F("RFB.WRITE <PAYLOAD>"));
             return;
         }
@@ -1259,6 +1261,7 @@ void _rfbSettingsMigrate(int version) {
 
 void rfbSetup() {
 #if RFB_PROVIDER == RFB_PROVIDER_EFM8BB1
+    Serial.begin(SERIAL_BAUDRATE);
     _rfb_parser.reserve(RfbParser::MessageSizeBasic);
 #elif RFB_PROVIDER == RFB_PROVIDER_RCSWITCH
 
@@ -1275,7 +1278,7 @@ void rfbSetup() {
             return;
         }
 
-        _rfb_modem = new RCSwitch();
+        _rfb_modem.reset(new RCSwitch());
         if (gpioLock(rx)) {
             _rfb_receive = true;
             _rfb_modem->enableReceive(rx);

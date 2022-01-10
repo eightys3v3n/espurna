@@ -79,12 +79,12 @@
 
 #define RELAY_NONE          0x99
 
-#define RELAY_BOOT_OFF              0
-#define RELAY_BOOT_ON               1
-#define RELAY_BOOT_SAME             2
-#define RELAY_BOOT_TOGGLE           3
-#define RELAY_BOOT_LOCKED_OFF       4
-#define RELAY_BOOT_LOCKED_ON        5
+#define RELAY_BOOT_OFF              RelayBoot::Off
+#define RELAY_BOOT_ON               RelayBoot::On
+#define RELAY_BOOT_SAME             RelayBoot::Same
+#define RELAY_BOOT_TOGGLE           RelayBoot::Toggle
+#define RELAY_BOOT_LOCKED_OFF       RelayBoot::LockedOff
+#define RELAY_BOOT_LOCKED_ON        RelayBoot::LockedOn
 
 #define RELAY_TYPE_NORMAL           RelayType::Normal
 #define RELAY_TYPE_INVERSE          RelayType::Inverse
@@ -97,9 +97,9 @@
 #define RELAY_SYNC_SAME             3
 #define RELAY_SYNC_FIRST            4
 
-#define RELAY_PULSE_NONE            RelayPulse::None
-#define RELAY_PULSE_OFF             RelayPulse::Off
-#define RELAY_PULSE_ON              RelayPulse::On
+#define RELAY_PULSE_NONE            Mode::None
+#define RELAY_PULSE_OFF             Mode::Off
+#define RELAY_PULSE_ON              Mode::On
 
 #define RELAY_PROVIDER_NONE         RelayProvider::None
 #define RELAY_PROVIDER_DUMMY        RelayProvider::Dummy
@@ -164,9 +164,9 @@
 // Heartbeat
 //------------------------------------------------------------------------------
 
-#define HEARTBEAT_NONE      heartbeat::Mode::None
-#define HEARTBEAT_ONCE      heartbeat::Mode::Once
-#define HEARTBEAT_REPEAT    heartbeat::Mode::Repeat
+#define HEARTBEAT_NONE      espurna::heartbeat::Mode::None
+#define HEARTBEAT_ONCE      espurna::heartbeat::Mode::Once
+#define HEARTBEAT_REPEAT    espurna::heartbeat::Mode::Repeat
 
 //------------------------------------------------------------------------------
 // MQTT

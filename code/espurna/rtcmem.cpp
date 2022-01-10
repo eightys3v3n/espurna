@@ -6,6 +6,7 @@ Copyright (C) 2019 by Maxim Prokhorov <prokhorov dot max at outlook dot com>
 
 */
 
+#include "espurna.h"
 #include "rtcmem.h"
 
 volatile RtcmemData* Rtcmem = reinterpret_cast<volatile RtcmemData*>(RTCMEM_ADDR);
@@ -50,12 +51,12 @@ bool _rtcmemStatus() {
 #if TERMINAL_SUPPORT
 
 void _rtcmemInitCommands() {
-    terminalRegisterCommand(F("RTCMEM.REINIT"), [](const terminal::CommandContext&) {
+    terminalRegisterCommand(F("RTCMEM.REINIT"), [](::terminal::CommandContext&&) {
         _rtcmemInit();
     });
 
     #if DEBUG_SUPPORT
-        terminalRegisterCommand(F("RTCMEM.DUMP"), [](const terminal::CommandContext&) {
+        terminalRegisterCommand(F("RTCMEM.DUMP"), [](::terminal::CommandContext&&) {
 
             DEBUG_MSG_P(PSTR("[RTCMEM] boot_status=%u status=%u blocks_used=%u\n"),
                 _rtcmem_status, _rtcmemStatus(), RtcmemSize);

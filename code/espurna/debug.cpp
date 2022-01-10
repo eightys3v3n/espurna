@@ -132,12 +132,12 @@ size_t bufferSize() {
     return getSetting("dbgLogBufSize", build::bufferSize());
 }
 
-heartbeat::Mode heartbeatMode() {
-    return getSetting("dbgHbMode", heartbeat::currentMode());
+espurna::heartbeat::Mode heartbeatMode() {
+    return getSetting("dbgHbMode", espurna::heartbeat::currentMode());
 }
 
-heartbeat::Seconds heartbeatInterval() {
-    return getSetting("dbgHbIntvl", heartbeat::currentInterval());
+espurna::duration::Seconds heartbeatInterval() {
+    return getSetting("dbgHbIntvl", espurna::heartbeat::currentInterval());
 }
 
 } // namespace settings
@@ -429,13 +429,6 @@ constexpr bool enabled() {
 }
 
 } // namespace build
-namespace settings {
-
-String hostname() {
-    return getSetting("hostname", getIdentifier());
-}
-
-} // namespace settings
 
 namespace internal {
 
@@ -453,7 +446,7 @@ void configure() {
     snprintf_P(
         internal::header, sizeof(internal::header),
         PSTR("<%u>1 - %.31s ESPurna - - - "), DEBUG_UDP_FAC_PRI,
-        settings::hostname().c_str());
+        getHostname().c_str());
 }
 
 bool output(const char* message, size_t len) {
@@ -519,7 +512,7 @@ void send(const char* message, size_t len, Timestamp timestamp) {
 namespace web {
 
 #if TERMINAL_SUPPORT
-void onAction(uint32_t client_id, const char * action, JsonObject& data) {
+void onAction(uint32_t, const char * action, JsonObject& data) {
     if (strcmp(action, "dbgcmd") != 0) {
         return;
     }
@@ -545,24 +538,24 @@ void onVisible(JsonObject& root) {
 
 // -----------------------------------------------------------------------------
 
-bool status(heartbeat::Mask mask) {
-    if (mask & heartbeat::Report::Uptime) {
+bool status(espurna::heartbeat::Mask mask) {
+    if (mask & espurna::heartbeat::Report::Uptime) {
         debugSend(PSTR("[MAIN] Uptime: %s\n"), getUptime().c_str());
     }
 
-    if (mask & heartbeat::Report::Freeheap) {
-        auto stats = systemHeapStats();
-        debugSend(PSTR("[MAIN] Heap: %5u / %5u bytes available (%5u contiguous)\n"),
-            stats.available, systemInitialFreeHeap(), stats.usable);
+    if (mask & espurna::heartbeat::Report::Freeheap) {
+        const auto stats = systemHeapStats();
+        debugSend(PSTR("[MAIN] Heap: initial %5lu available %5lu contiguous %5hu\n"),
+            systemInitialFreeHeap(), stats.available, stats.usable);
     }
 
-    if ((mask & heartbeat::Report::Vcc) && (ADC_MODE_VALUE == ADC_VCC)) {
+    if ((mask & espurna::heartbeat::Report::Vcc) && (ADC_MODE_VALUE == ADC_VCC)) {
         debugSend(PSTR("[MAIN] VCC: %lu mV\n"), ESP.getVcc());
     }
 
 #if NTP_SUPPORT
-    if ((mask & heartbeat::Report::Datetime) && (ntpSynced())) {
-        debugSend(PSTR("[MAIN] Time: %s\n"), ntpDateTime().c_str());
+    if ((mask & espurna::heartbeat::Report::Datetime) && ntpSynced()) {
+        debugSend(PSTR("[MAIN] Datetime: %s\n"), ntpDateTime().c_str());
     }
 #endif
 
@@ -593,10 +586,8 @@ void configure() {
 #endif
 
 #if DEBUG_LOG_BUFFER_SUPPORT
-    {
-        if (settings::buffer()) {
-            debug::buffer::enable(settings::bufferSize());
-        }
+    if (settings::buffer()) {
+        debug::buffer::enable(settings::bufferSize());
     }
 #endif
 
@@ -674,16 +665,15 @@ void debugSetup() {
 
 #if DEBUG_LOG_BUFFER_SUPPORT
 #if TERMINAL_SUPPORT
-    terminalRegisterCommand(F("DEBUG.BUFFER"), [](const terminal::CommandContext& ctx) {
+    terminalRegisterCommand(F("DEBUG.BUFFER"), [](::terminal::CommandContext&& ctx) {
         debug::buffer::disable();
         if (!debug::buffer::size()) {
             terminalError(ctx, F("buffer is empty\n"));
             return;
         }
 
-        ctx.output.printf_P(PSTR("Buffer size: %u / %u bytes\n"),
-            debug::buffer::size(),
-            debug::buffer::capacity());
+        ctx.output.printf_P(PSTR("buffer size: %u / %u bytes\n"),
+            debug::buffer::size(), debug::buffer::capacity());
         debug::buffer::dump(ctx.output);
         terminalOK(ctx);
     });

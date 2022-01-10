@@ -54,7 +54,8 @@ void end() {
     // Page reload will happen automatically, when WebUI will fail to receive the PING response.
     DEBUG_MSG_P(PSTR("[OTA] Done, restarting.\n"));
     customResetReason(CustomResetReason::Ota);
-    nice_delay(100);
+    espurna::time::blockingDelay(
+        espurna::duration::Milliseconds(100));
 }
 
 void progress(unsigned int progress, unsigned int total) {
@@ -98,9 +99,10 @@ void error(ota_error_t error) {
         break;
     }
 
-    DEBUG_MSG_P(PSTR("[OTA] \"%s\" error (#%u)"),
+    DEBUG_MSG_P(PSTR("[OTA] \"%s\" (%u, updater code %u)\n"),
             reinterpret_cast<const char*>(ptr),
-            static_cast<unsigned int>(error));
+            static_cast<unsigned int>(error),
+            Update.getError());
 #endif
 
     eepromRotate(true);
